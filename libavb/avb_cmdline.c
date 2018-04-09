@@ -58,14 +58,6 @@ char* avb_sub_cmdline(AvbOps* ops,
     char part_name[AVB_PART_NAME_MAX_SIZE];
     char guid_buf[37];
 
-    /* Don't attempt to query the partition guid unless its search string is
-     * present in the command line. Note: the original cmdline is used here,
-     * not the replaced one. See b/116010959.
-     */
-    if (avb_strstr(cmdline, replace_str[n]) == NULL) {
-      continue;
-    }
-
     if (!avb_str_concat(part_name,
                         sizeof part_name,
                         part_name_str[n],
@@ -228,8 +220,7 @@ AvbSlotVerifyResult avb_append_options(
     AvbSlotVerifyData* slot_data,
     AvbVBMetaImageHeader* toplevel_vbmeta,
     AvbAlgorithmType algorithm_type,
-    AvbHashtreeErrorMode hashtree_error_mode,
-    AvbHashtreeErrorMode resolved_hashtree_error_mode) {
+    AvbHashtreeErrorMode hashtree_error_mode) {
   AvbSlotVerifyResult ret;
   const char* verity_mode;
   bool is_device_unlocked;
@@ -278,11 +269,13 @@ AvbSlotVerifyResult avb_append_options(
     case AVB_ALGORITHM_TYPE_SHA256_RSA2048:
     case AVB_ALGORITHM_TYPE_SHA256_RSA4096:
     case AVB_ALGORITHM_TYPE_SHA256_RSA8192: {
+      AvbSHA256Ctx ctx;
       size_t n, total_size = 0;
-      uint8_t vbmeta_digest[AVB_SHA256_DIGEST_SIZE];
-      avb_slot_verify_data_calculate_vbmeta_digest(
-          slot_data, AVB_DIGEST_TYPE_SHA256, vbmeta_digest);
+      avb_sha256_init(&ctx);
       for (n = 0; n < slot_data->num_vbmeta_images; n++) {
+        avb_sha256_update(&ctx,
+                          slot_data->vbmeta_images[n].vbmeta_data,
+                          slot_data->vbmeta_images[n].vbmeta_size);
         total_size += slot_data->vbmeta_images[n].vbmeta_size;
       }
       if (!cmdline_append_option(
@@ -291,7 +284,7 @@ AvbSlotVerifyResult avb_append_options(
               slot_data, "androidboot.vbmeta.size", total_size) ||
           !cmdline_append_hex(slot_data,
                               "androidboot.vbmeta.digest",
-                              vbmeta_digest,
+                              avb_sha256_final(&ctx),
                               AVB_SHA256_DIGEST_SIZE)) {
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
         goto out;
@@ -301,11 +294,13 @@ AvbSlotVerifyResult avb_append_options(
     case AVB_ALGORITHM_TYPE_SHA512_RSA2048:
     case AVB_ALGORITHM_TYPE_SHA512_RSA4096:
     case AVB_ALGORITHM_TYPE_SHA512_RSA8192: {
+      AvbSHA512Ctx ctx;
       size_t n, total_size = 0;
-      uint8_t vbmeta_digest[AVB_SHA512_DIGEST_SIZE];
-      avb_slot_verify_data_calculate_vbmeta_digest(
-          slot_data, AVB_DIGEST_TYPE_SHA512, vbmeta_digest);
+      avb_sha512_init(&ctx);
       for (n = 0; n < slot_data->num_vbmeta_images; n++) {
+        avb_sha512_update(&ctx,
+                          slot_data->vbmeta_images[n].vbmeta_data,
+                          slot_data->vbmeta_images[n].vbmeta_size);
         total_size += slot_data->vbmeta_images[n].vbmeta_size;
       }
       if (!cmdline_append_option(
@@ -314,7 +309,7 @@ AvbSlotVerifyResult avb_append_options(
               slot_data, "androidboot.vbmeta.size", total_size) ||
           !cmdline_append_hex(slot_data,
                               "androidboot.vbmeta.digest",
-                              vbmeta_digest,
+                              avb_sha512_final(&ctx),
                               AVB_SHA512_DIGEST_SIZE)) {
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
         goto out;
@@ -332,7 +327,7 @@ AvbSlotVerifyResult avb_append_options(
     const char* dm_verity_mode;
     char* new_ret;
 
-    switch (resolved_hashtree_error_mode) {
+    switch (hashtree_error_mode) {
       case AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE:
         if (!cmdline_append_option(
                 slot_data, "androidboot.vbmeta.invalidate_on_error", "yes")) {
@@ -359,11 +354,6 @@ AvbSlotVerifyResult avb_append_options(
         verity_mode = "logging";
         dm_verity_mode = "ignore_corruption";
         break;
-      case AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO:
-        // Should never get here because MANAGED_RESTART_AND_EIO is
-        // remapped by avb_manage_hashtree_error_mode().
-        avb_assert_not_reached();
-        break;
     }
     new_ret = avb_replace(
         slot_data->cmdline, "$(ANDROID_VERITY_MODE)", dm_verity_mode);
@@ -378,13 +368,6 @@ AvbSlotVerifyResult avb_append_options(
           slot_data, "androidboot.veritymode", verity_mode)) {
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
     goto out;
-  }
-  if (hashtree_error_mode == AVB_HASHTREE_ERROR_MODE_MANAGED_RESTART_AND_EIO) {
-    if (!cmdline_append_option(
-            slot_data, "androidboot.veritymode.managed", "yes")) {
-      ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
-      goto out;
-    }
   }
 
   ret = AVB_SLOT_VERIFY_RESULT_OK;

@@ -14,8 +14,6 @@
 // limitations under the License.
 //
 
-subdirs = ["test", "tools"]
-
 cc_defaults {
     name: "avb_defaults",
     cflags: [
@@ -91,10 +89,9 @@ cc_library_static {
         "avb_sources",
     ],
     host_supported: true,
-    recovery_available: true,
     export_include_dirs: ["."],
     target: {
-        linux: {
+        android: {
             srcs: ["libavb/avb_sysdeps_posix.c"],
         },
         linux_glibc: {
@@ -112,7 +109,6 @@ cc_library_static {
         "avb_defaults",
         "avb_sources",
     ],
-    recovery_available: true,
     export_include_dirs: ["."],
     shared_libs: ["libbase"],
     static_libs: ["libfs_mgr"],
@@ -182,12 +178,6 @@ cc_test_host {
         "img2simg",
         "avbtool",
     ],
-    data: [
-        "avbtool",
-        "test/avbtool_signing_helper_*.py",
-        "test/data/*",
-    ],
-    test_config: "test/libavb_host_unittest.xml",
     static_libs: [
         "libavb",
         "libavb_ab_host",
@@ -197,7 +187,6 @@ cc_test_host {
         "libgtest_host",
     ],
     shared_libs: [
-        "libbase",
         "libchrome",
         "libcrypto",
     ],
