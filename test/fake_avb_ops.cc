@@ -304,7 +304,8 @@ AvbIOResult FakeAvbOps::get_size_of_partition(AvbOps* ops,
 
   int64_t file_size;
   if (!base::GetFileSize(path, &file_size)) {
-    return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+    fprintf(stderr, "Error getting size of file '%s'\n", path.value().c_str());
+    return AVB_IO_RESULT_ERROR_IO;
   }
   *out_size = file_size;
   return AVB_IO_RESULT_OK;
