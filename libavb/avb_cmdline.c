@@ -97,15 +97,7 @@ char* avb_sub_cmdline(AvbOps* ops,
     }
   }
 
-  /* It's possible there is no _PARTUUID for replacement above.
-   * Duplicate cmdline to ret for additional substitutions below.
-   */
-  if (ret == NULL) {
-    ret = avb_strdup(cmdline);
-    if (ret == NULL) {
-      goto fail;
-    }
-  }
+  avb_assert(ret != NULL);
 
   /* Replace any additional substitutions. */
   if (additional_substitutions != NULL) {
@@ -233,7 +225,6 @@ static int cmdline_append_hex(AvbSlotVerifyData* slot_data,
 
 AvbSlotVerifyResult avb_append_options(
     AvbOps* ops,
-    AvbSlotVerifyFlags flags,
     AvbSlotVerifyData* slot_data,
     AvbVBMetaImageHeader* toplevel_vbmeta,
     AvbAlgorithmType algorithm_type,
@@ -244,16 +235,12 @@ AvbSlotVerifyResult avb_append_options(
   bool is_device_unlocked;
   AvbIOResult io_ret;
 
-  /* Add androidboot.vbmeta.device option... except if not using a vbmeta
-   * partition since it doesn't make sense in that case.
-   */
-  if (!(flags & AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION)) {
-    if (!cmdline_append_option(slot_data,
-                               "androidboot.vbmeta.device",
-                               "PARTUUID=$(ANDROID_VBMETA_PARTUUID)")) {
-      ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
-      goto out;
-    }
+  /* Add androidboot.vbmeta.device option. */
+  if (!cmdline_append_option(slot_data,
+                             "androidboot.vbmeta.device",
+                             "PARTUUID=$(ANDROID_VBMETA_PARTUUID)")) {
+    ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+    goto out;
   }
 
   /* Add androidboot.vbmeta.avb_version option. */
