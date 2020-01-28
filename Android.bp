@@ -97,31 +97,11 @@ genrule {
   cmd: "cp $(in) $(out)",
 }
 
-python_library_host {
-    name: "aftl_proto",
-    srcs: [
-        "proto/**/*.py",
-    ],
-    version: {
-        py2: {
-            enabled: true,
-            // This is needs to be false due to b/146057182#comment5.
-            embedded_launcher: false,
-        },
-        py3: {
-            enabled: false,
-        },
-    },
-}
-
 python_binary_host {
     name: "aftltool",
     srcs: [
         ":aftltool_py",
         ":avbtool_py",
-    ],
-    libs: [
-        "aftl_proto",
     ],
     main: "aftltool.py",
     required: ["fec"],
@@ -144,17 +124,11 @@ python_test_host {
         ":avbtool_py",
         "aftltool_test.py",
     ],
-    libs: [
-        "aftl_proto",
-    ],
-    data: [
-        "test/data/testkey_rsa4096.pem",
-    ],
     test_suites: ["general-tests"],
     version: {
         py2: {
             enabled: true,
-            // This is needs to be false due to b/146057182#comment5.
+           //TODO: This is needed due to b/146057182#comment5.
             embedded_launcher: false,
         },
         py3: {
