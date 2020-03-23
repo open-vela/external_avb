@@ -48,8 +48,6 @@ extern "C" {
 #define AVB_AFTL_MAX_AFTL_DESCRIPTOR_SIZE 65536ul
 /* Limit version.incremental size to 256 characters. */
 #define AVB_AFTL_MAX_VERSION_INCREMENTAL_SIZE 256ul
-/* AFTL trees require at most 64 hashes to reconstruct the root */
-#define AVB_AFTL_MAX_PROOF_SIZE 64 * AVB_AFTL_HASH_SIZE
 /* Max URL limit. */
 #define AVB_AFTL_MAX_URL_SIZE 2048ul
 /* Minimum valid size for a FirmwareInfo leaf. Derived from a minimal json
@@ -153,7 +151,7 @@ typedef struct AftlIcpEntry {
   FirmwareInfo fw_info_leaf;
   uint8_t* log_root_signature;
   uint8_t proofs[/*proof_hash_count*/][AVB_AFTL_HASH_SIZE];
-} AVB_ATTR_PACKED AftlIcpEntry;
+} AftlIcpEntry;
 
 /* Main data structure for an AFTL descriptor. */
 typedef struct AftlDescriptor {
