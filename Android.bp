@@ -270,13 +270,11 @@ cc_library_host_static {
     srcs: ["libavb_ab/avb_ab_flow.c"],
 }
 
-cc_library_static {
-    name: "libavb_aftl",
+cc_library_host_static {
+    name: "libavb_aftl_host",
     defaults: [
         "avb_defaults",
         "avb_sources"],
-    host_supported: true,
-    recovery_available: true,
     header_libs: ["avb_headers"],
     export_header_lib_headers: ["avb_headers"],
     cflags: [
@@ -340,7 +338,7 @@ cc_test_host {
     static_libs: [
         "libavb",
         "libavb_ab_host",
-        "libavb_aftl",
+        "libavb_aftl_host",
         "libavb_atx_host",
         "libavb_things_example",
         "libgmock_host",
