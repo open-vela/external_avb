@@ -30,7 +30,6 @@ import argparse
 import binascii
 import bisect
 import hashlib
-import json
 import math
 import os
 import struct
@@ -41,7 +40,7 @@ import time
 
 # Keep in sync with libavb/avb_version.h.
 AVB_VERSION_MAJOR = 1
-AVB_VERSION_MINOR = 2
+AVB_VERSION_MINOR = 1
 AVB_VERSION_SUB = 0
 
 # Keep in sync with libavb/avb_footer.h.
@@ -2014,10 +2013,6 @@ class AvbVBMetaHeader(object):
         older versions.
     flags: Flags from the AvbVBMetaImageFlags enumeration. This must be set to
         zero if the vbmeta image is not a top-level image.
-    rollback_index_location: The location of the rollback index defined in this
-        header. Only valid for the main vbmeta. For chained partitions, the
-        rollback index location must be specified in the
-        AvbChainPartitionDescriptor and this value must be set to 0.
     release_string: The release string from avbtool, e.g. "avbtool 1.0.0" or
         "avbtool 1.0.0 xyz_board Git-234abde89". Is guaranteed to be NUL
         terminated. Applications must not make assumptions about how this
@@ -2026,7 +2021,9 @@ class AvbVBMetaHeader(object):
   MAGIC = b'AVB0'
   SIZE = 256
 
-  # Keep in sync with |reserved| field of |AvbVBMetaImageHeader|.
+  # Keep in sync with |reserved0| and |reserved| field of
+  # |AvbVBMetaImageHeader|.
+  RESERVED0 = 4
   RESERVED = 80
 
   # Keep in sync with |AvbVBMetaImageHeader|.
@@ -2039,8 +2036,8 @@ class AvbVBMetaHeader(object):
                    '2Q'      # offset, size (public key metadata)
                    '2Q'      # offset, size (descriptors)
                    'Q'       # rollback_index
-                   'L'       # flags
-                   'L'       # rollback_index_location
+                   'L' +     # flags
+                   str(RESERVED0) + 'x' +  # padding for reserved bytes
                    '47sx' +  # NUL-terminated release string
                    str(RESERVED) + 'x')  # padding for reserved bytes
 
@@ -2066,7 +2063,6 @@ class AvbVBMetaHeader(object):
        self.descriptors_size,
        self.rollback_index,
        self.flags,
-       self.rollback_index_location,
        release_string) = struct.unpack(self.FORMAT_STRING, data)
       # Nuke NUL-bytes at the end of the string.
       if self.magic != self.MAGIC:
@@ -2094,7 +2090,6 @@ class AvbVBMetaHeader(object):
       self.descriptors_size = 0
       self.rollback_index = 0
       self.flags = 0
-      self.rollback_index_location = 0
       self.release_string = get_release_string()
 
   def bump_required_libavb_version_minor(self, minor):
@@ -2126,7 +2121,7 @@ class AvbVBMetaHeader(object):
                        self.public_key_size, self.public_key_metadata_offset,
                        self.public_key_metadata_size, self.descriptors_offset,
                        self.descriptors_size, self.rollback_index, self.flags,
-                       self.rollback_index_location, release_string_encoded)
+                       release_string_encoded)
 
 
 class Avb(object):
@@ -2409,7 +2404,6 @@ class Avb(object):
     o.write('Algorithm:                {}\n'.format(alg_name))
     o.write('Rollback Index:           {}\n'.format(header.rollback_index))
     o.write('Flags:                    {}\n'.format(header.flags))
-    o.write('Rollback Index Location:  {}\n'.format(header.rollback_index_location))
     o.write('Release String:           \'{}\'\n'.format(header.release_string))
 
     # Print descriptors.
@@ -2521,66 +2515,6 @@ class Avb(object):
                                               desc.partition_name + image_ext)
         self.verify_image(chained_image_filename, key_path, None, False,
                           accept_zeroed_hashtree)
-
-  def print_partition_digests(self, image_filename, output, as_json):
-    """Implements the 'print_partition_digests' command.
-
-    Arguments:
-      image_filename: Image file to get information from (file object).
-      output: Output file to write human-readable information to (file object).
-      as_json: If True, print information as JSON
-
-    Raises:
-      AvbError: If getting the partition digests from the image fails.
-    """
-
-    image_dir = os.path.dirname(image_filename)
-    image_ext = os.path.splitext(image_filename)[1]
-    json_partitions = None
-    if as_json:
-      json_partitions = []
-    self.print_partition_digests_internal(image_filename, output, json_partitions, image_dir,
-                                          image_ext)
-    if as_json:
-      output.write(json.dumps({'partitions': json_partitions}, indent=2))
-
-  def print_partition_digests_internal(self, image_filename, output, json_partitions, image_dir,
-                                       image_ext):
-    """Helper for printing partitions.
-
-    Arguments:
-      image_filename: Image file to get information from (file object).
-      output: Output file to write human-readable information to (file object).
-      json_partitions: If not None, don't print to output, instead add partition information
-                       to this list.
-      image_dir: The directory to use when looking for chained partition files.
-      image_ext: The extension to use for chained partition files.
-
-    Raises:
-      AvbError: If getting the partition digests from the image fails.
-    """
-
-    image = ImageHandler(image_filename)
-    (_, _, descriptors, _) = self._parse_image(image)
-
-    for desc in descriptors:
-      if isinstance(desc, AvbHashDescriptor):
-        digest = binascii.hexlify(desc.digest).decode('ascii')
-        if json_partitions != None:
-          json_partitions.append({'name': desc.partition_name, 'digest': digest})
-        else:
-          output.write('{}: {}\n'.format(desc.partition_name, digest))
-      elif isinstance(desc, AvbHashtreeDescriptor):
-        digest = binascii.hexlify(desc.root_digest).decode('ascii')
-        if json_partitions != None:
-          json_partitions.append({'name': desc.partition_name, 'digest': digest})
-        else:
-          output.write('{}: {}\n'.format(desc.partition_name, digest))
-      elif isinstance(desc, AvbChainPartitionDescriptor):
-        chained_image_filename = os.path.join(image_dir,
-                                              desc.partition_name + image_ext)
-        num_printed = self.print_partition_digests_internal(chained_image_filename, output,
-                                                            json_partitions, image_dir, image_ext)
 
   def calculate_vbmeta_digest(self, image_filename, hash_algorithm, output):
     """Implements the 'calculate_vbmeta_digest' command.
@@ -2832,8 +2766,7 @@ class Avb(object):
 
   def make_vbmeta_image(self, output, chain_partitions, algorithm_name,
                         key_path, public_key_metadata_path, rollback_index,
-                        flags, rollback_index_location,
-                        props, props_from_file, kernel_cmdlines,
+                        flags, props, props_from_file, kernel_cmdlines,
                         setup_rootfs_from_kernel,
                         include_descriptors_from_image,
                         signing_helper,
@@ -2852,7 +2785,6 @@ class Avb(object):
       public_key_metadata_path: Path to public key metadata or None.
       rollback_index: The rollback index to use.
       flags: Flags value to use in the image.
-      rollback_index_location: Location of the main vbmeta rollback index.
       props: Properties to insert (list of strings of the form 'key:value').
       props_from_file: Properties to insert (list of strings 'key:<path>').
       kernel_cmdlines: Kernel cmdlines to insert (list of strings).
@@ -2869,19 +2801,19 @@ class Avb(object):
       AvbError: If a chained partition is malformed.
     """
     # If we're asked to calculate minimum required libavb version, we're done.
-    tmp_header = AvbVBMetaHeader()
-    if rollback_index_location > 0:
-      tmp_header.bump_required_libavb_version_minor(2)
-    if include_descriptors_from_image:
-      # Use the bump logic in AvbVBMetaHeader to calculate the max required
-      # version of all included descriptors.
-      for image in include_descriptors_from_image:
-        (_, image_header, _, _) = self._parse_image(ImageHandler(image.name))
-        tmp_header.bump_required_libavb_version_minor(
-            image_header.required_libavb_version_minor)
-
     if print_required_libavb_version:
-      print('1.{}'.format(tmp_header.required_libavb_version_minor))
+      if include_descriptors_from_image:
+        # Use the bump logic in AvbVBMetaHeader to calculate the max required
+        # version of all included descriptors.
+        tmp_header = AvbVBMetaHeader()
+        for image in include_descriptors_from_image:
+          (_, image_header, _, _) = self._parse_image(ImageHandler(image.name))
+          tmp_header.bump_required_libavb_version_minor(
+              image_header.required_libavb_version_minor)
+        print('1.{}'.format(tmp_header.required_libavb_version_minor))
+      else:
+        # Descriptors aside, all vbmeta features are supported in 1.0.
+        print('1.0')
       return
 
     if not output:
@@ -2891,12 +2823,11 @@ class Avb(object):
     ht_desc_to_setup = None
     vbmeta_blob = self._generate_vbmeta_blob(
         algorithm_name, key_path, public_key_metadata_path, descriptors,
-        chain_partitions, rollback_index, flags, rollback_index_location,
-        props, props_from_file,
+        chain_partitions, rollback_index, flags, props, props_from_file,
         kernel_cmdlines, setup_rootfs_from_kernel, ht_desc_to_setup,
         include_descriptors_from_image, signing_helper,
         signing_helper_with_files, release_string,
-        append_to_release_string, tmp_header.required_libavb_version_minor)
+        append_to_release_string, 0)
 
     # Write entire vbmeta blob (header, authentication, auxiliary).
     output.seek(0)
@@ -2910,8 +2841,7 @@ class Avb(object):
   def _generate_vbmeta_blob(self, algorithm_name, key_path,
                             public_key_metadata_path, descriptors,
                             chain_partitions,
-                            rollback_index, flags, rollback_index_location,
-                            props, props_from_file,
+                            rollback_index, flags, props, props_from_file,
                             kernel_cmdlines,
                             setup_rootfs_from_kernel,
                             ht_desc_to_setup,
@@ -2937,7 +2867,6 @@ class Avb(object):
       chain_partitions: List of partitions to chain or None.
       rollback_index: The rollback index to use.
       flags: Flags to use in the image.
-      rollback_index_location: Location of the main vbmeta rollback index.
       props: Properties to insert (List of strings of the form 'key:value').
       props_from_file: Properties to insert (List of strings 'key:<path>').
       kernel_cmdlines: Kernel cmdlines to insert (list of strings).
@@ -2974,23 +2903,23 @@ class Avb(object):
 
     # Insert chained partition descriptors, if any
     if chain_partitions:
-      used_locations = {rollback_index_location: True}
+      used_locations = {}
       for cp in chain_partitions:
         cp_tokens = cp.split(':')
         if len(cp_tokens) != 3:
           raise AvbError('Malformed chained partition "{}".'.format(cp))
         partition_name = cp_tokens[0]
-        chained_rollback_index_location = int(cp_tokens[1])
+        rollback_index_location = int(cp_tokens[1])
         file_path = cp_tokens[2]
         # Check that the same rollback location isn't being used by
         # multiple chained partitions.
-        if used_locations.get(chained_rollback_index_location):
+        if used_locations.get(rollback_index_location):
           raise AvbError('Rollback Index Location {} is already in use.'.format(
-              chained_rollback_index_location))
-        used_locations[chained_rollback_index_location] = True
+              rollback_index_location))
+        used_locations[rollback_index_location] = True
         desc = AvbChainPartitionDescriptor()
         desc.partition_name = partition_name
-        desc.rollback_index_location = chained_rollback_index_location
+        desc.rollback_index_location = rollback_index_location
         if desc.rollback_index_location < 1:
           raise AvbError('Rollback index location must be 1 or larger.')
         with open(file_path, 'rb') as f:
@@ -3122,7 +3051,6 @@ class Avb(object):
 
     h.rollback_index = rollback_index
     h.flags = flags
-    h.rollback_index_location = rollback_index_location
 
     # Generate Header data block.
     header_data_blob = h.encode()
@@ -3256,8 +3184,7 @@ class Avb(object):
   def add_hash_footer(self, image_filename, partition_size, partition_name,
                       hash_algorithm, salt, chain_partitions, algorithm_name,
                       key_path,
-                      public_key_metadata_path, rollback_index, flags,
-                      rollback_index_location, props,
+                      public_key_metadata_path, rollback_index, flags, props,
                       props_from_file, kernel_cmdlines,
                       setup_rootfs_from_kernel,
                       include_descriptors_from_image, calc_max_image_size,
@@ -3280,7 +3207,6 @@ class Avb(object):
       public_key_metadata_path: Path to public key metadata or None.
       rollback_index: Rollback index.
       flags: Flags value to use in the image.
-      rollback_index_location: Location of the main vbmeta rollback index.
       props: Properties to insert (List of strings of the form 'key:value').
       props_from_file: Properties to insert (List of strings 'key:<path>').
       kernel_cmdlines: Kernel cmdlines to insert (list of strings).
@@ -3307,8 +3233,6 @@ class Avb(object):
     required_libavb_version_minor = 0
     if use_persistent_digest or do_not_use_ab:
       required_libavb_version_minor = 1
-    if rollback_index_location > 0:
-      required_libavb_version_minor = 2
 
     # If we're asked to calculate minimum required libavb version, we're done.
     if print_required_libavb_version:
@@ -3399,8 +3323,7 @@ class Avb(object):
       ht_desc_to_setup = None
       vbmeta_blob = self._generate_vbmeta_blob(
           algorithm_name, key_path, public_key_metadata_path, [h_desc],
-          chain_partitions, rollback_index, flags, rollback_index_location,
-          props, props_from_file,
+          chain_partitions, rollback_index, flags, props, props_from_file,
           kernel_cmdlines, setup_rootfs_from_kernel, ht_desc_to_setup,
           include_descriptors_from_image, signing_helper,
           signing_helper_with_files, release_string,
@@ -3459,7 +3382,6 @@ class Avb(object):
                           block_size, salt, chain_partitions, algorithm_name,
                           key_path,
                           public_key_metadata_path, rollback_index, flags,
-                          rollback_index_location,
                           props, props_from_file, kernel_cmdlines,
                           setup_rootfs_from_kernel,
                           setup_as_rootfs_from_kernel,
@@ -3491,7 +3413,6 @@ class Avb(object):
       public_key_metadata_path: Path to public key metadata or None.
       rollback_index: Rollback index.
       flags: Flags value to use in the image.
-      rollback_index_location: Location of the main vbmeta rollback index.
       props: Properties to insert (List of strings of the form 'key:value').
       props_from_file: Properties to insert (List of strings 'key:<path>').
       kernel_cmdlines: Kernel cmdlines to insert (list of strings).
@@ -3522,8 +3443,6 @@ class Avb(object):
     required_libavb_version_minor = 0
     if use_persistent_root_digest or do_not_use_ab:
       required_libavb_version_minor = 1
-    if rollback_index_location > 0:
-      required_libavb_version_minor = 2
 
     # If we're asked to calculate minimum required libavb version, we're done.
     if print_required_libavb_version:
@@ -3686,8 +3605,7 @@ class Avb(object):
       vbmeta_offset = tree_offset + len_hashtree_and_fec
       vbmeta_blob = self._generate_vbmeta_blob(
           algorithm_name, key_path, public_key_metadata_path, [ht_desc],
-          chain_partitions, rollback_index, flags, rollback_index_location,
-          props, props_from_file,
+          chain_partitions, rollback_index, flags, props, props_from_file,
           kernel_cmdlines, setup_rootfs_from_kernel, ht_desc_to_setup,
           include_descriptors_from_image, signing_helper,
           signing_helper_with_files, release_string,
@@ -4091,10 +4009,6 @@ class AvbTool(object):
                             help='Rollback Index',
                             type=parse_number,
                             default=0)
-    sub_parser.add_argument('--rollback_index_location',
-                            help='Location of main vbmeta Rollback Index',
-                            type=parse_number,
-                            default=0)
     # This is used internally for unit tests. Do not include in --help output.
     sub_parser.add_argument('--internal_release_string',
                             help=argparse.SUPPRESS)
@@ -4434,22 +4348,6 @@ class AvbTool(object):
     sub_parser.set_defaults(func=self.verify_image)
 
     sub_parser = subparsers.add_parser(
-        'print_partition_digests',
-        help='Prints partition digests.')
-    sub_parser.add_argument('--image',
-                            help='Image to print partition digests from',
-                            type=argparse.FileType('rb'),
-                            required=True)
-    sub_parser.add_argument('--output',
-                            help='Write info to file',
-                            type=argparse.FileType('wt'),
-                            default=sys.stdout)
-    sub_parser.add_argument('--json',
-                            help=('Print output as JSON'),
-                            action='store_true')
-    sub_parser.set_defaults(func=self.print_partition_digests)
-
-    sub_parser = subparsers.add_parser(
         'calculate_vbmeta_digest',
         help='Calculate vbmeta digest.')
     sub_parser.add_argument('--image',
@@ -4635,8 +4533,7 @@ class AvbTool(object):
     self.avb.make_vbmeta_image(args.output, args.chain_partition,
                                args.algorithm, args.key,
                                args.public_key_metadata, args.rollback_index,
-                               args.flags, args.rollback_index_location,
-                               args.prop, args.prop_from_file,
+                               args.flags, args.prop, args.prop_from_file,
                                args.kernel_cmdline,
                                args.setup_rootfs_from_kernel,
                                args.include_descriptors_from_image,
@@ -4661,8 +4558,7 @@ class AvbTool(object):
                              args.salt, args.chain_partition, args.algorithm,
                              args.key,
                              args.public_key_metadata, args.rollback_index,
-                             args.flags, args.rollback_index_location,
-                             args.prop, args.prop_from_file,
+                             args.flags, args.prop, args.prop_from_file,
                              args.kernel_cmdline,
                              args.setup_rootfs_from_kernel,
                              args.include_descriptors_from_image,
@@ -4694,8 +4590,7 @@ class AvbTool(object):
         args.hash_algorithm, args.block_size,
         args.salt, args.chain_partition, args.algorithm,
         args.key, args.public_key_metadata,
-        args.rollback_index, args.flags,
-        args.rollback_index_location, args.prop,
+        args.rollback_index, args.flags, args.prop,
         args.prop_from_file,
         args.kernel_cmdline,
         args.setup_rootfs_from_kernel,
@@ -4744,10 +4639,6 @@ class AvbTool(object):
                           args.expected_chain_partition,
                           args.follow_chain_partitions,
                           args.accept_zeroed_hashtree)
-
-  def print_partition_digests(self, args):
-    """Implements the 'print_partition_digests' sub-command."""
-    self.avb.print_partition_digests(args.image.name, args.output, args.json)
 
   def calculate_vbmeta_digest(self, args):
     """Implements the 'calculate_vbmeta_digest' sub-command."""
