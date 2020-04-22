@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2016, The Android Open Source Project
 #
@@ -23,8 +23,6 @@
 # SOFTWARE.
 #
 """Command-line tool for working with Android Verified Boot images."""
-
-from __future__ import print_function
 
 import argparse
 import binascii
