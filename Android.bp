@@ -81,10 +81,11 @@ python_binary_host {
     required: ["fec"],
     version: {
         py2: {
-            enabled: false,
+            enabled: true,
+            embedded_launcher: true,
         },
         py3: {
-            enabled: true,
+            enabled: false,
         },
     },
 }
