@@ -76,7 +76,7 @@ cc_defaults {
 
 python_binary_host {
     name: "avbtool",
-    srcs: ["avbtool.py"],
+    srcs: [":avbtool_py"],
     main: "avbtool.py",
     required: ["fec"],
     version: {
@@ -125,7 +125,7 @@ python_binary_host {
     name: "aftltool",
     srcs: [
         "aftltool.py",
-        "avbtool.py",
+        ":avbtool_py",
     ],
     libs: [
         "aftl_proto",
@@ -147,7 +147,7 @@ python_test_host {
     srcs: [
         "aftltool.py",
         "aftltool_test.py",
-        "avbtool.py",
+        ":avbtool_py",
     ],
     libs: [
         "aftl_proto",
@@ -164,6 +164,13 @@ python_test_host {
             enabled: true,
         },
     },
+}
+
+genrule {
+  name: "avbtool_py",
+  srcs: ["avbtool",],
+  out: ["avbtool.py"],
+  cmd: "cp $(in) $(out)",
 }
 
 // Build libavb - this is a static library that depends
