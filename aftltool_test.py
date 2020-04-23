@@ -24,7 +24,6 @@
 #
 """Unit tests for aftltool."""
 
-import argparse
 import base64
 import binascii
 import io
@@ -1542,10 +1541,10 @@ class TransparencyLogConfigTestCase(unittest.TestCase):
     self.assertEqual(log.target, "example.com:8080")
     self.assertEqual(log.pub_key, "mykey.pub")
 
-    with self.assertRaises(argparse.ArgumentTypeError):
+    with self.assertRaises(aftltool.AftlError):
       aftltool.TransparencyLogConfig.from_argument("example.com:8080,")
 
-    with self.assertRaises(argparse.ArgumentTypeError):
+    with self.assertRaises(aftltool.AftlError):
       aftltool.TransparencyLogConfig.from_argument(",")
 
   def test_from_argument_with_api_key(self):
