@@ -75,7 +75,7 @@ TEST_F(AvbSlotVerifyTest, Basic) {
   EXPECT_NE(nullptr, slot_data);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1152 "
       "androidboot.vbmeta.digest="
@@ -116,7 +116,7 @@ TEST_F(AvbSlotVerifyTest, BasicSha512) {
   EXPECT_NE(nullptr, slot_data);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha512 androidboot.vbmeta.size=1152 "
       "androidboot.vbmeta.digest="
@@ -164,7 +164,7 @@ TEST_F(AvbSlotVerifyTest, BasicUnlocked) {
   EXPECT_NE(nullptr, slot_data);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=unlocked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1152 "
       "androidboot.vbmeta.digest="
@@ -410,89 +410,6 @@ TEST_F(AvbSlotVerifyTest, RollbackIndex) {
   avb_slot_verify_data_free(slot_data);
 }
 
-TEST_F(AvbSlotVerifyTest, RollbackIndexLocationSpecified) {
-  GenerateVBMetaImage("vbmeta_a.img",
-                      "SHA256_RSA2048",
-                      42,
-                      base::FilePath("test/data/testkey_rsa2048.pem"),
-                      "--rollback_index_location 15");
-
-  ops_.set_expected_public_key(
-      PublicKeyAVB(base::FilePath("test/data/testkey_rsa2048.pem")));
-
-  AvbSlotVerifyData* slot_data = NULL;
-  const char* requested_partitions[] = {"boot", NULL};
-
-  // First try with 42 as the stored rollback index - this should
-  // succeed since the image rollback index is 42 (as set above).
-  // The rollback index at location 0 should not be checked because
-  // the rollback index location is set to 15.
-  ops_.set_stored_rollback_indexes({{15, 42}});
-  EXPECT_EQ(AVB_SLOT_VERIFY_RESULT_OK,
-            avb_slot_verify(ops_.avb_ops(),
-                            requested_partitions,
-                            "_a",
-                            AVB_SLOT_VERIFY_FLAGS_NONE,
-                            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-                            &slot_data));
-  EXPECT_NE(nullptr, slot_data);
-
-  for (size_t n = 0; n < AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS; n++) {
-    uint64_t expected_rollback = 0;
-    if (n == 15) expected_rollback = 42;
-
-    EXPECT_EQ(expected_rollback, slot_data->rollback_indexes[n]);
-  }
-
-  avb_slot_verify_data_free(slot_data);
-
-  // Then try with 43 for the stored rollback index - this should fail
-  // because the image has rollback index 42 which is less than 43.
-  ops_.set_stored_rollback_indexes({{0, 41}, {15, 43}});
-  EXPECT_EQ(AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX,
-            avb_slot_verify(ops_.avb_ops(),
-                            requested_partitions,
-                            "_a",
-                            AVB_SLOT_VERIFY_FLAGS_NONE,
-                            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-                            &slot_data));
-  EXPECT_EQ(nullptr, slot_data);
-  EXPECT_EQ(AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX,
-            avb_slot_verify(ops_.avb_ops(),
-                            requested_partitions,
-                            "_a",
-                            AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR,
-                            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-                            &slot_data));
-  EXPECT_NE(nullptr, slot_data);
-  avb_slot_verify_data_free(slot_data);
-}
-
-TEST_F(AvbSlotVerifyTest, RollbackIndexLocationInvalid) {
-  uint32_t rollback_index_location = AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS;
-  GenerateVBMetaImage("vbmeta_a.img",
-                      "SHA256_RSA2048",
-                      42,
-                      base::FilePath("test/data/testkey_rsa2048.pem"),
-                      base::StringPrintf("--rollback_index_location %d",
-                                         rollback_index_location));
-
-  ops_.set_expected_public_key(
-      PublicKeyAVB(base::FilePath("test/data/testkey_rsa2048.pem")));
-
-  AvbSlotVerifyData* slot_data = NULL;
-  const char* requested_partitions[] = {"boot", NULL};
-
-  EXPECT_NE(AVB_SLOT_VERIFY_RESULT_OK,
-            avb_slot_verify(ops_.avb_ops(),
-                            requested_partitions,
-                            "_a",
-                            AVB_SLOT_VERIFY_FLAGS_NONE,
-                            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-                            &slot_data));
-  EXPECT_EQ(nullptr, slot_data);
-}
-
 TEST_F(AvbSlotVerifyTest, LoadEntirePartitionIfAllowingVerificationError) {
   const size_t boot_partition_size = 16 * 1024 * 1024;
   const size_t boot_image_size = 5 * 1024 * 1024;
@@ -667,7 +584,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInVBMeta) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           4\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Kernel Cmdline descriptor:\n"
@@ -738,7 +654,7 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInVBMeta) {
       "cmdline in vbmeta 1234-fake-guid-for:boot_a cmdline in hash footer "
       "1234-fake-guid-for:system_a "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1472 "
       "androidboot.vbmeta.digest="
@@ -949,7 +865,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInChainedPartition) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           11\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Chain Partition descriptor:\n"
@@ -977,7 +892,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInChainedPartition) {
       "Algorithm:                SHA256_RSA4096\n"
       "Rollback Index:           12\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -1064,7 +978,7 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInChainedPartition) {
   EXPECT_EQ(
       "cmdline2 in hash footer cmdline2 in vbmeta "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=4416 "
       "androidboot.vbmeta.digest="
@@ -1086,123 +1000,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInChainedPartition) {
 
   EXPECT_EQ("4a45faa9adfeb94e9154fe682c11fef1a1a3d829b67cbf1a12ac7f0aa4f8e2e4",
             CalcVBMetaDigest("vbmeta.img", "sha256"));
-}
-
-TEST_F(AvbSlotVerifyTest, RollbackIndexLocationInChainedPartition) {
-  size_t boot_partition_size = 16 * 1024 * 1024;
-  const size_t boot_image_size = 5 * 1024 * 1024;
-  base::FilePath boot_path = GenerateImage("boot.img", boot_image_size);
-  const char* requested_partitions[] = {"boot", NULL};
-
-  EXPECT_COMMAND(0,
-                 "./avbtool add_hash_footer"
-                 " --image %s"
-                 " --kernel_cmdline 'cmdline2 in hash footer'"
-                 " --rollback_index 12"
-                 " --rollback_index_location 3"
-                 " --partition_name boot"
-                 " --partition_size %zd"
-                 " --algorithm SHA256_RSA4096"
-                 " --key test/data/testkey_rsa4096.pem"
-                 " --salt deadbeef"
-                 " --internal_release_string \"\"",
-                 boot_path.value().c_str(),
-                 boot_partition_size);
-
-  base::FilePath pk_path = testdir_.Append("testkey_rsa4096.avbpubkey");
-  EXPECT_COMMAND(
-      0,
-      "./avbtool extract_public_key --key test/data/testkey_rsa4096.pem"
-      " --output %s",
-      pk_path.value().c_str());
-
-  GenerateVBMetaImage(
-      "vbmeta.img",
-      "SHA256_RSA2048",
-      11,
-      base::FilePath("test/data/testkey_rsa2048.pem"),
-      base::StringPrintf("--chain_partition boot:2:%s"
-                         " --kernel_cmdline 'cmdline2 in vbmeta'"
-                         " --rollback_index_location 1"
-                         " --internal_release_string \"\"",
-                         pk_path.value().c_str()));
-
-  EXPECT_EQ(
-      "Minimum libavb version:   1.2\n"
-      "Header Block:             256 bytes\n"
-      "Authentication Block:     320 bytes\n"
-      "Auxiliary Block:          1728 bytes\n"
-      "Public key (sha1):        cdbb77177f731920bbe0a0f94f84d9038ae0617d\n"
-      "Algorithm:                SHA256_RSA2048\n"
-      "Rollback Index:           11\n"
-      "Flags:                    0\n"
-      "Rollback Index Location:  1\n"
-      "Release String:           ''\n"
-      "Descriptors:\n"
-      "    Chain Partition descriptor:\n"
-      "      Partition Name:          boot\n"
-      "      Rollback Index Location: 2\n"
-      "      Public key (sha1):       "
-      "2597c218aae470a130f61162feaae70afd97f011\n"
-      "    Kernel Cmdline descriptor:\n"
-      "      Flags:                 0\n"
-      "      Kernel Cmdline:        'cmdline2 in vbmeta'\n",
-      InfoImage(vbmeta_image_path_));
-
-  EXPECT_EQ(
-      "Footer version:           1.0\n"
-      "Image size:               16777216 bytes\n"
-      "Original image size:      5242880 bytes\n"
-      "VBMeta offset:            5242880\n"
-      "VBMeta size:              2112 bytes\n"
-      "--\n"
-      "Minimum libavb version:   1.2\n"
-      "Header Block:             256 bytes\n"
-      "Authentication Block:     576 bytes\n"
-      "Auxiliary Block:          1280 bytes\n"
-      "Public key (sha1):        2597c218aae470a130f61162feaae70afd97f011\n"
-      "Algorithm:                SHA256_RSA4096\n"
-      "Rollback Index:           12\n"
-      "Flags:                    0\n"
-      "Rollback Index Location:  3\n"
-      "Release String:           ''\n"
-      "Descriptors:\n"
-      "    Hash descriptor:\n"
-      "      Image Size:            5242880 bytes\n"
-      "      Hash Algorithm:        sha256\n"
-      "      Partition Name:        boot\n"
-      "      Salt:                  deadbeef\n"
-      "      Digest:                "
-      "184cb36243adb8b87d2d8c4802de32125fe294ec46753d732144ee65df68a23d\n"
-      "      Flags:                 0\n"
-      "    Kernel Cmdline descriptor:\n"
-      "      Flags:                 0\n"
-      "      Kernel Cmdline:        'cmdline2 in hash footer'\n",
-      InfoImage(boot_path));
-
-  ops_.set_expected_public_key(
-      PublicKeyAVB(base::FilePath("test/data/testkey_rsa2048.pem")));
-
-  // Verify that the rollback index location in the chained partition is ignored
-  ops_.set_stored_rollback_indexes({{1, 11}, {2, 12}, {3, 20}});
-
-  AvbSlotVerifyData* slot_data = NULL;
-  EXPECT_EQ(AVB_SLOT_VERIFY_RESULT_OK,
-            avb_slot_verify(ops_.avb_ops(),
-                            requested_partitions,
-                            "",
-                            AVB_SLOT_VERIFY_FLAGS_NONE,
-                            AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,
-                            &slot_data));
-  EXPECT_NE(nullptr, slot_data);
-
-  EXPECT_EQ(0UL, slot_data->rollback_indexes[0]);
-  EXPECT_EQ(11UL, slot_data->rollback_indexes[1]);
-  EXPECT_EQ(12UL, slot_data->rollback_indexes[2]);
-  for (size_t n = 3; n < AVB_MAX_NUMBER_OF_ROLLBACK_INDEX_LOCATIONS; n++) {
-    EXPECT_EQ(0UL, slot_data->rollback_indexes[n]);
-  }
-  avb_slot_verify_data_free(slot_data);
 }
 
 TEST_F(AvbSlotVerifyTest, HashDescriptorInOtherVBMetaPartition) {
@@ -1265,7 +1062,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInOtherVBMetaPartition) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           11\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Chain Partition descriptor:\n"
@@ -1287,7 +1083,6 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInOtherVBMetaPartition) {
       "Algorithm:                SHA256_RSA4096\n"
       "Rollback Index:           12\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -1375,7 +1170,7 @@ TEST_F(AvbSlotVerifyTest, HashDescriptorInOtherVBMetaPartition) {
   EXPECT_EQ(
       "cmdline2 in hash footer cmdline2 in vbmeta "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=4416 "
       "androidboot.vbmeta.digest="
@@ -1668,7 +1463,6 @@ TEST_F(AvbSlotVerifyTest, ChainedPartitionNoSlots) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           11\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Chain Partition descriptor:\n"
@@ -1721,7 +1515,7 @@ TEST_F(AvbSlotVerifyTest, ChainedPartitionNoSlots) {
   EXPECT_EQ(
       "cmdline2 in hash footer cmdline2 in vbmeta "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=4416 "
       "androidboot.vbmeta.digest="
@@ -1784,7 +1578,6 @@ TEST_F(AvbSlotVerifyTest, PartitionsOtherThanBoot) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           4\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -1899,7 +1692,6 @@ TEST_F(AvbSlotVerifyTest, OnlyLoadWhatHasBeenRequested) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           4\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -2020,7 +1812,7 @@ TEST_F(AvbSlotVerifyTest, NoVBMetaPartitionFlag) {
   // Note the absence of 'androidboot.vbmeta.device'
   EXPECT_EQ(
       "this is=5 from foo=42 and=43 from bar "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=3456 "
@@ -2083,7 +1875,7 @@ TEST_F(AvbSlotVerifyTest, PublicKeyMetadata) {
   EXPECT_NE(nullptr, slot_data);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=2688 "
       "androidboot.vbmeta.digest="
@@ -2148,7 +1940,6 @@ void AvbSlotVerifyTest::CmdlineWithHashtreeVerification(
           "Algorithm:                SHA256_RSA2048\n"
           "Rollback Index:           4\n"
           "Flags:                    %d\n"
-          "Rollback Index Location:  0\n"
           "Release String:           ''\n"
           "Descriptors:\n"
           "    Kernel Cmdline descriptor:\n"
@@ -2193,7 +1984,7 @@ void AvbSlotVerifyTest::CmdlineWithHashtreeVerification(
         "restart_on_corruption ignore_zero_blocks\" root=/dev/dm-0 "
         "should_be_in_both=1 "
         "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-        "androidboot.vbmeta.avb_version=1.2 "
+        "androidboot.vbmeta.avb_version=1.1 "
         "androidboot.vbmeta.device_state=locked "
         "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1536 "
         "androidboot.vbmeta.digest="
@@ -2207,7 +1998,7 @@ void AvbSlotVerifyTest::CmdlineWithHashtreeVerification(
     EXPECT_EQ(
         "root=PARTUUID=1234-fake-guid-for:system_a should_be_in_both=1 "
         "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-        "androidboot.vbmeta.avb_version=1.2 "
+        "androidboot.vbmeta.avb_version=1.1 "
         "androidboot.vbmeta.device_state=locked "
         "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1536 "
         "androidboot.vbmeta.digest="
@@ -2271,7 +2062,6 @@ void AvbSlotVerifyTest::CmdlineWithChainedHashtreeVerification(
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -2333,7 +2123,6 @@ void AvbSlotVerifyTest::CmdlineWithChainedHashtreeVerification(
                          "Algorithm:                SHA256_RSA2048\n"
                          "Rollback Index:           4\n"
                          "Flags:                    %d\n"
-                         "Rollback Index Location:  0\n"
                          "Release String:           ''\n"
                          "Descriptors:\n"
                          "    Chain Partition descriptor:\n"
@@ -2374,7 +2163,7 @@ void AvbSlotVerifyTest::CmdlineWithChainedHashtreeVerification(
         "restart_on_corruption ignore_zero_blocks\" root=/dev/dm-0 "
         "should_be_in_both=1 "
         "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-        "androidboot.vbmeta.avb_version=1.2 "
+        "androidboot.vbmeta.avb_version=1.1 "
         "androidboot.vbmeta.device_state=locked "
         "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=3456 "
         "androidboot.vbmeta.digest="
@@ -2388,7 +2177,7 @@ void AvbSlotVerifyTest::CmdlineWithChainedHashtreeVerification(
     EXPECT_EQ(
         "root=PARTUUID=1234-fake-guid-for:system_a should_be_in_both=1 "
         "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-        "androidboot.vbmeta.avb_version=1.2 "
+        "androidboot.vbmeta.avb_version=1.1 "
         "androidboot.vbmeta.device_state=locked "
         "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=3456 "
         "androidboot.vbmeta.digest="
@@ -2471,7 +2260,6 @@ void AvbSlotVerifyTest::VerificationDisabled(bool use_avbctl,
           "Algorithm:                SHA256_RSA2048\n"
           "Rollback Index:           4\n"
           "Flags:                    %d\n"
-          "Rollback Index Location:  0\n"
           "Release String:           ''\n"
           "Descriptors:\n"
           "    Kernel Cmdline descriptor:\n"
@@ -2697,7 +2485,6 @@ TEST_F(AvbSlotVerifyTest, NoVBMetaPartition) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    2147483648\n"
-      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -2780,7 +2567,7 @@ TEST_F(AvbSlotVerifyTest, NoVBMetaPartition) {
       "4096 4096 4096 4096 sha1 c9ffc3bfae5000269a55a56621547fd1fcf819df "
       "d00df00d 2 restart_on_corruption ignore_zero_blocks\" root=/dev/dm-0 "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:boot "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=5312 "
       "androidboot.vbmeta.digest="
@@ -2951,7 +2738,7 @@ TEST_F(AvbSlotVerifyTest, HashtreeErrorModes) {
       "c9ffc3bfae5000269a55a56621547fd1fcf819df d00df00d 2 "
       "restart_on_corruption ignore_zero_blocks\" root=/dev/dm-0 "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1664 "
@@ -2981,7 +2768,7 @@ TEST_F(AvbSlotVerifyTest, HashtreeErrorModes) {
       "c9ffc3bfae5000269a55a56621547fd1fcf819df d00df00d 2 "
       "restart_on_corruption ignore_zero_blocks\" root=/dev/dm-0 "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1664 "
@@ -3010,7 +2797,7 @@ TEST_F(AvbSlotVerifyTest, HashtreeErrorModes) {
       "c9ffc3bfae5000269a55a56621547fd1fcf819df d00df00d 2 "
       "ignore_zero_blocks ignore_zero_blocks\" root=/dev/dm-0 "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1664 "
@@ -3051,7 +2838,7 @@ TEST_F(AvbSlotVerifyTest, HashtreeErrorModes) {
       "c9ffc3bfae5000269a55a56621547fd1fcf819df d00df00d 2 "
       "ignore_corruption ignore_zero_blocks\" root=/dev/dm-0 "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1664 "
@@ -3090,7 +2877,7 @@ TEST_F(AvbSlotVerifyTest, HashtreeErrorModes) {
     EXPECT_EQ(
         "root=PARTUUID=1234-fake-guid-for:system "
         "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta "
-        "androidboot.vbmeta.avb_version=1.2 "
+        "androidboot.vbmeta.avb_version=1.1 "
         "androidboot.vbmeta.device_state=locked "
         "androidboot.vbmeta.hash_alg=sha256 "
         "androidboot.vbmeta.size=1664 "
@@ -3140,7 +2927,6 @@ class AvbSlotVerifyTestWithPersistentDigest : public AvbSlotVerifyTest {
                                  "Algorithm:                SHA256_RSA2048\n"
                                  "Rollback Index:           0\n"
                                  "Flags:                    0\n"
-                                 "Rollback Index Location:  0\n"
                                  "Release String:           ''\n"
                                  "Descriptors:\n"
                                  "    Hash descriptor:\n"
@@ -3202,7 +2988,6 @@ class AvbSlotVerifyTestWithPersistentDigest : public AvbSlotVerifyTest {
                                  "Algorithm:                SHA256_RSA2048\n"
                                  "Rollback Index:           0\n"
                                  "Flags:                    0\n"
-                                 "Rollback Index Location:  0\n"
                                  "Release String:           ''\n"
                                  "Descriptors:\n"
                                  "    Kernel Cmdline descriptor:\n"
@@ -3282,7 +3067,7 @@ TEST_F(AvbSlotVerifyTestWithPersistentDigest, Basic) {
   Verify(true /* expect_success */);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1280 "
@@ -3487,7 +3272,7 @@ TEST_F(AvbSlotVerifyTestWithPersistentDigest, Basic_Hashtree_Sha1) {
       // Note: Here appear the bytes used in write_persistent_value above.
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1408 "
@@ -3514,7 +3299,7 @@ TEST_F(AvbSlotVerifyTestWithPersistentDigest, Basic_Hashtree_Sha256) {
       // Note: Here appear the bytes used in write_persistent_value above.
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1408 "
@@ -3545,7 +3330,7 @@ TEST_F(AvbSlotVerifyTestWithPersistentDigest, Basic_Hashtree_Sha512) {
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 "
       "androidboot.vbmeta.size=1408 "
@@ -3853,7 +3638,7 @@ TEST_F(AvbSlotVerifyTest, NoSystemPartition) {
   EXPECT_NE(nullptr, slot_data);
   EXPECT_EQ(
       "androidboot.vbmeta.device=PARTUUID=1234-fake-guid-for:vbmeta_a "
-      "androidboot.vbmeta.avb_version=1.2 "
+      "androidboot.vbmeta.avb_version=1.1 "
       "androidboot.vbmeta.device_state=locked "
       "androidboot.vbmeta.hash_alg=sha256 androidboot.vbmeta.size=1152 "
       "androidboot.vbmeta.digest="
