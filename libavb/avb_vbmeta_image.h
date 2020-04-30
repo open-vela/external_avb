@@ -176,12 +176,10 @@ typedef struct AvbVBMetaImageHeader {
    */
   uint32_t flags;
 
-  /* 124: The location of the rollback index defined in this header.
-   * Only valid for the main vbmeta. For chained partitions, the rollback
-   * index location must be specified in the AvbChainPartitionDescriptor
-   * and this value must be set to 0.
+  /* 124: Reserved to ensure |release_string| start on a 16-byte
+   * boundary. Must be set to zeroes.
    */
-  uint32_t rollback_index_location;
+  uint8_t reserved0[4];
 
   /* 128: The release string from avbtool, e.g. "avbtool 1.0.0" or
    * "avbtool 1.0.0 xyz_board Git-234abde89". Is guaranteed to be NUL

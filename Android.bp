@@ -76,43 +76,40 @@ cc_defaults {
 
 python_binary_host {
     name: "avbtool",
-    srcs: ["avbtool.py"],
+    srcs: [":avbtool_py"],
     main: "avbtool.py",
     required: ["fec"],
     version: {
         py2: {
-            enabled: false,
+            enabled: true,
+            embedded_launcher: true,
         },
         py3: {
-            enabled: true,
+            enabled: false,
         },
     },
+}
+
+genrule {
+  name: "aftltool_py",
+  srcs: ["aftltool",],
+  out: ["aftltool.py"],
+  cmd: "cp $(in) $(out)",
 }
 
 python_library_host {
     name: "aftl_proto",
     srcs: [
-        "proto/api.proto",
-        "proto/aftl.proto",
-        "proto/crypto/sigpb/sigpb.proto",
-        "proto/crypto/keyspb/keyspb.proto",
-        "proto/trillian.proto",
+        "proto/**/*.py",
     ],
-    proto: {
-        include_dirs: [
-            "external/protobuf/src",
-        ],
-        local_include_dirs: [
-            "proto",
-        ],
-        canonical_path_from_root: false,
-    },
     version: {
         py2: {
-            enabled: false,
+            enabled: true,
+            // This is needs to be false due to b/146057182#comment5.
+            embedded_launcher: false,
         },
         py3: {
-            enabled: true,
+            enabled: false,
         },
     },
 }
@@ -120,19 +117,21 @@ python_library_host {
 python_binary_host {
     name: "aftltool",
     srcs: [
-        "aftltool.py",
-        "avbtool.py",
+        ":aftltool_py",
+        ":avbtool_py",
     ],
     libs: [
         "aftl_proto",
     ],
     main: "aftltool.py",
+    required: ["fec"],
     version: {
         py2: {
-            enabled: false,
+            enabled: true,
+            embedded_launcher: false,
         },
         py3: {
-            enabled: true,
+            enabled: false,
         },
     },
 }
@@ -141,9 +140,9 @@ python_test_host {
     name: "aftltool_test",
     main: "aftltool_test.py",
     srcs: [
-        "aftltool.py",
+        ":aftltool_py",
+        ":avbtool_py",
         "aftltool_test.py",
-        "avbtool.py",
     ],
     libs: [
         "aftl_proto",
@@ -154,12 +153,21 @@ python_test_host {
     test_suites: ["general-tests"],
     version: {
         py2: {
-            enabled: false,
+            enabled: true,
+            // This is needs to be false due to b/146057182#comment5.
+            embedded_launcher: false,
         },
         py3: {
-            enabled: true,
+            enabled: false,
         },
     },
+}
+
+genrule {
+  name: "avbtool_py",
+  srcs: ["avbtool",],
+  out: ["avbtool.py"],
+  cmd: "cp $(in) $(out)",
 }
 
 // Build libavb - this is a static library that depends
@@ -239,13 +247,11 @@ cc_library_host_static {
     srcs: ["libavb_ab/avb_ab_flow.c"],
 }
 
-cc_library_static {
-    name: "libavb_aftl",
+cc_library_host_static {
+    name: "libavb_aftl_host",
     defaults: [
         "avb_defaults",
         "avb_sources"],
-    host_supported: true,
-    recovery_available: true,
     header_libs: ["avb_headers"],
     export_header_lib_headers: ["avb_headers"],
     cflags: [
@@ -309,7 +315,7 @@ cc_test_host {
     static_libs: [
         "libavb",
         "libavb_ab_host",
-        "libavb_aftl",
+        "libavb_aftl_host",
         "libavb_atx_host",
         "libavb_things_example",
         "libgmock_host",
