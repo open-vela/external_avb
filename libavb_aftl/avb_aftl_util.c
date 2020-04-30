@@ -482,7 +482,7 @@ static bool parse_trillian_log_root_descriptor(AftlIcpEntry* icp_entry,
   }
   if (icp_entry->log_root_descriptor.metadata_size + parsed_size >
       aftl_blob_remaining) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     free_aftl_icp_entry(icp_entry);
     return false;
   }
@@ -640,7 +640,7 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
   }
 
   if (*remaining_size < proof_size + AVB_AFTL_MIN_AFTL_ICP_ENTRY_SIZE) {
-    avb_error("Invalid AftlImage\n");
+    avb_error("Invalid AftlDescriptor\n");
     return NULL;
   }
 
@@ -733,7 +733,7 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
     return NULL;
   }
   if (parsed_size > *remaining_size) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     avb_free(icp_entry);
     return NULL;
   }
@@ -753,7 +753,7 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
     return NULL;
   }
   if (parsed_size > *remaining_size) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     free_aftl_icp_entry(icp_entry);
     return NULL;
   }
@@ -769,7 +769,7 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
     return NULL;
   }
   if (parsed_size > *remaining_size) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     free_aftl_icp_entry(icp_entry);
     return NULL;
   }
@@ -782,7 +782,7 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
     return NULL;
   }
   if (parsed_size > *remaining_size) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     free_aftl_icp_entry(icp_entry);
     return NULL;
   }
@@ -803,12 +803,12 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
     return NULL;
   }
   if (parsed_size > *remaining_size) {
-    avb_error("Invalid AftlImage.\n");
+    avb_error("Invalid AftlDescriptor.\n");
     free_aftl_icp_entry(icp_entry);
     return NULL;
   }
 
-  /* Finally, copy the proof hash data from the blob to the AftlImage. */
+  /* Finally, copy the proof hash data from the blob to the AftlDescriptor. */
   avb_memcpy(icp_entry->proofs, *aftl_blob, icp_entry->inc_proof_size);
   *aftl_blob += icp_entry->inc_proof_size;
   *remaining_size -= parsed_size;
@@ -816,58 +816,62 @@ AftlIcpEntry* parse_icp_entry(uint8_t** aftl_blob, size_t* remaining_size) {
   return icp_entry;
 }
 
-/* Allocate and parse an AftlImage object out of binary data. */
-AftlImage* parse_aftl_image(uint8_t* aftl_blob, size_t aftl_blob_size) {
-  AftlImage* image;
-  AftlImageHeader* image_header;
-  size_t image_size;
+/* Allocate and parse an AftlDescriptor object out of binary data. */
+AftlDescriptor* parse_aftl_descriptor(uint8_t* aftl_blob,
+                                      size_t aftl_blob_size) {
+  AftlDescriptor* aftl_descriptor;
+  AftlIcpHeader* icp_header;
+  size_t aftl_descriptor_size;
   size_t i;
   size_t remaining_size;
 
-  /* Ensure the blob is at least large enough for an AftlImageHeader */
-  avb_assert(aftl_blob_size >= sizeof(AftlImageHeader));
-  image_header = (AftlImageHeader*)aftl_blob;
-  /* Check for the magic value for an AftlImageHeader. */
-  if (image_header->magic != AVB_AFTL_MAGIC) {
+  /* Ensure the blob is at least large enough for an AftlIcpHeader */
+  avb_assert(aftl_blob_size >= sizeof(AftlIcpHeader));
+  icp_header = (AftlIcpHeader*)aftl_blob;
+  /* Check for the magic value for an AftlIcpHeader. */
+  if (icp_header->magic != AVB_AFTL_MAGIC) {
     avb_error("Invalid magic number\n");
     return NULL;
   }
   /* Extract the size out of the header. */
-  image_size = avb_be32toh(image_header->image_size);
-  if (image_size > AVB_AFTL_MAX_AFTL_IMAGE_SIZE) return NULL;
-  avb_assert(image_size >= sizeof(AftlImageHeader) &&
-             image_size < AVB_AFTL_MAX_AFTL_IMAGE_SIZE);
-  image = (AftlImage*)avb_calloc(sizeof(AftlImage));
-  if (!image) {
-    avb_error("Failed allocation for AftlImage.\n");
+  aftl_descriptor_size = avb_be32toh(icp_header->aftl_descriptor_size);
+  if (aftl_descriptor_size > AVB_AFTL_MAX_AFTL_DESCRIPTOR_SIZE) return NULL;
+  avb_assert(aftl_descriptor_size >= sizeof(AftlIcpHeader) &&
+             aftl_descriptor_size < AVB_AFTL_MAX_AFTL_DESCRIPTOR_SIZE);
+  aftl_descriptor = (AftlDescriptor*)avb_calloc(sizeof(AftlDescriptor));
+  if (!aftl_descriptor) {
+    avb_error("Failed allocation for AftlDescriptor.\n");
     return NULL;
   }
   /* Copy the header bytes directly from the aftl_blob. */
-  avb_memcpy(&(image->header), aftl_blob, sizeof(AftlImageHeader));
+  avb_memcpy(&(aftl_descriptor->header), aftl_blob, sizeof(AftlIcpHeader));
   /* Fix endianness. */
-  image->header.required_icp_version_major =
-      avb_be32toh(image->header.required_icp_version_major);
-  image->header.required_icp_version_minor =
-      avb_be32toh(image->header.required_icp_version_minor);
-  image->header.image_size = avb_be32toh(image->header.image_size);
-  image->header.icp_count = avb_be16toh(image->header.icp_count);
+  aftl_descriptor->header.required_icp_version_major =
+      avb_be32toh(aftl_descriptor->header.required_icp_version_major);
+  aftl_descriptor->header.required_icp_version_minor =
+      avb_be32toh(aftl_descriptor->header.required_icp_version_minor);
+  aftl_descriptor->header.aftl_descriptor_size =
+      avb_be32toh(aftl_descriptor->header.aftl_descriptor_size);
+  aftl_descriptor->header.icp_count =
+      avb_be16toh(aftl_descriptor->header.icp_count);
   /* Allocate memory for the entry array */
-  image->entries = (AftlIcpEntry**)avb_calloc(sizeof(AftlIcpEntry*) *
-                                              image->header.icp_count);
-  if (!image->entries) {
+  aftl_descriptor->entries = (AftlIcpEntry**)avb_calloc(
+      sizeof(AftlIcpEntry*) * aftl_descriptor->header.icp_count);
+  if (!aftl_descriptor->entries) {
     avb_error("Failed allocation for AftlIcpEntry array.\n");
-    avb_free(image);
+    avb_free(aftl_descriptor);
     return NULL;
   }
 
   /* Jump past the header and parse out each AftlIcpEntry. */
-  aftl_blob += sizeof(AftlImageHeader);
-  remaining_size = aftl_blob_size - sizeof(AftlImageHeader);
-  for (i = 0; i < image->header.icp_count && remaining_size > 0; i++) {
-    image->entries[i] = parse_icp_entry(&aftl_blob, &remaining_size);
+  aftl_blob += sizeof(AftlIcpHeader);
+  remaining_size = aftl_blob_size - sizeof(AftlIcpHeader);
+  for (i = 0; i < aftl_descriptor->header.icp_count && remaining_size > 0;
+       i++) {
+    aftl_descriptor->entries[i] = parse_icp_entry(&aftl_blob, &remaining_size);
   }
 
-  return image;
+  return aftl_descriptor;
 }
 
 /* Free an AftlIcpEntry and each allocated sub-element. */
@@ -892,23 +896,23 @@ void free_aftl_icp_entry(AftlIcpEntry* icp_entry) {
   }
 }
 
-/* Free the AftlImage and each allocated sub-element. */
-void free_aftl_image(AftlImage* image) {
+/* Free the AftlDescriptor and each allocated sub-element. */
+void free_aftl_descriptor(AftlDescriptor* aftl_descriptor) {
   size_t i;
 
   /* Ensure the descriptor exists before attempting to free it. */
-  if (!image) {
+  if (!aftl_descriptor) {
     return;
   }
   /* Free the entry array. */
-  if (image->entries) {
+  if (aftl_descriptor->entries) {
     /* Walk through each entry, freeing each one. */
-    for (i = 0; i < image->header.icp_count; i++) {
-      if (image->entries[i]) {
-        free_aftl_icp_entry(image->entries[i]);
+    for (i = 0; i < aftl_descriptor->header.icp_count; i++) {
+      if (aftl_descriptor->entries[i]) {
+        free_aftl_icp_entry(aftl_descriptor->entries[i]);
       }
     }
-    avb_free(image->entries);
+    avb_free(aftl_descriptor->entries);
   }
-  avb_free(image);
+  avb_free(aftl_descriptor);
 }
