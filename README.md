@@ -372,7 +372,8 @@ The content for the vbmeta partition can be generated as follows:
     $ avbtool make_vbmeta_image                                                    \
         [--output OUTPUT]                                                          \
         [--algorithm ALGORITHM] [--key /path/to/key_used_for_signing_or_pub_key]   \
-        [--public_key_metadata /path/to/pkmd.bin] [--rollback_index NUMBER]        \
+        [--public_key_metadata /path/to/pkmd.bin]                                  \
+        [--rollback_index NUMBER] [--rollback_index_location NUMBER]               \
         [--include_descriptors_from_image /path/to/image.bin]                      \
         [--setup_rootfs_from_kernel /path/to/image.bin]                            \
         [--chain_partition part_name:rollback_index_location:/path/to/key1.bin]    \
@@ -388,7 +389,8 @@ added to an existing image as follows:
         --partition_name PARTNAME --partition_size SIZE                            \
         [--image IMAGE]                                                            \
         [--algorithm ALGORITHM] [--key /path/to/key_used_for_signing_or_pub_key]   \
-        [--public_key_metadata /path/to/pkmd.bin] [--rollback_index NUMBER]        \
+        [--public_key_metadata /path/to/pkmd.bin]                                  \
+        [--rollback_index NUMBER] [--rollback_index_location NUMBER]               \
         [--hash_algorithm HASH_ALG] [--salt HEX]                                   \
         [--include_descriptors_from_image /path/to/image.bin]                      \
         [--setup_rootfs_from_kernel /path/to/image.bin]                            \
@@ -409,7 +411,8 @@ hashtree is also appended to the image.
         --partition_name PARTNAME --partition_size SIZE                            \
         [--image IMAGE]                                                            \
         [--algorithm ALGORITHM] [--key /path/to/key_used_for_signing_or_pub_key]   \
-        [--public_key_metadata /path/to/pkmd.bin] [--rollback_index NUMBER]        \
+        [--public_key_metadata /path/to/pkmd.bin]                                  \
+        [--rollback_index NUMBER] [--rollback_index_location NUMBER]               \
         [--hash_algorithm HASH_ALG] [--salt HEX] [--block_size SIZE]               \
         [--include_descriptors_from_image /path/to/image.bin]                      \
         [--setup_rootfs_from_kernel /path/to/image.bin]                            \
@@ -521,6 +524,10 @@ not using any vbmeta partitions, for example:
         --vbmeta_image vbmeta.img
     $ fastboot flash boot boot-with-vbmeta-appended.img
 
+Information about an image can be obtained using the `info_image` command. The
+output of this command should not be relied on and the way information is
+structured may change.
+
 The `verify_image` command can be used to verify the contents of
 several image files at the same time. When invoked on an image the
 following checks are performed:
@@ -590,6 +597,31 @@ as the `verify_image` command is used to load files for these (e.g. it assumes
 the same directory and file extension as the given image). Once all vbmeta
 structs have been loaded, the digest is calculated (using the hash algorithm
 given by the `--hash_algorithm` option) and printed out.
+
+To print hash and hashtree digests embedded in the verified metadata, use the
+`print_partition_digests` command like this:
+
+    $ avbtool print_partition_digests --image /path/to/vbmeta.img
+    system: ddaa513715fd2e22f3c1cea3c1a1f98ccb515fc6
+    boot: 5cba9a418e04b5f9e29ee6a250f6cdbe30c6cec867c59d388f141c3fedcb28c1
+    vendor: 06993a9e85e46e53d3892881bb75eff48ecadaa8
+
+For partitions with hash descriptors, this prints out the digest and for
+partitions with hashtree descriptors the root digest is printed out. Like the
+`calculate_vbmeta_digest` and `verify_image` commands, chain partitions are
+followed. To use JSON for the output, use the `--json` option.
+
+In case you would like to log all command lines for all avbtool invocations for
+debugging integrations with other tooling, you can configure the envirionment
+variable AVB_INVOCATION_LOGFILE with the name of the log file:
+
+    $ export AVB_INVOCATION_LOGFILE='/tmp/avb_invocation.log'
+    $ ./avbtool version
+    $ ./avbtool version
+    $ cat /tmp/avb_invocation.log
+    ./avbtool version
+    ./avbtool version
+
 
 ## Build System Integration
 
@@ -1023,11 +1055,12 @@ to indicate the boot state. It shall use the following values:
 This section contains information about how AVB is integrated into specific
 devices. This is not an exhaustive list.
 
-### Pixel 2
+### Pixel 2 and later
 
-On the Pixel 2 and Pixel 2 XL the boot loader supports a virtual partition with
-the name `avb_custom_key`. Flashing and erasing this partition only works in the
-UNLOCKED state. Setting the custom key is done like this:
+On the Pixel 2, Pixel 2 XL and later Pixel models, the boot loader supports a
+virtual partition with the name `avb_custom_key`. Flashing and erasing this
+partition only works in the UNLOCKED state. Setting the custom key is done like
+this:
 
     avbtool extract_public_key --key key.pem --output pkmd.bin
     fastboot flash avb_custom_key pkmd.bin
@@ -1045,6 +1078,10 @@ When booting an image signed with a custom key, a yellow screen will be shown as
 part of the boot process to remind the user that the custom key is in use.
 
 # Version History
+
+### Version 1.2
+
+Version 1.2 adds support for the `rollback_index_location` field of the main vbmeta header.
 
 ### Version 1.1
 
