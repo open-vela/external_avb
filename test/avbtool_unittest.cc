@@ -307,6 +307,42 @@ TEST_F(AvbToolTest, CheckRollbackIndex) {
   EXPECT_EQ(rollback_index, h.rollback_index);
 }
 
+TEST_F(AvbToolTest, CheckRollbackIndexLocationOmitted) {
+  uint32_t expected_rollback_index_location = 0;
+
+  GenerateVBMetaImage("vbmeta.img",
+                      "SHA256_RSA2048",
+                      0,
+                      base::FilePath("test/data/testkey_rsa2048.pem"),
+                      "--internal_release_string \"\"");
+
+  AvbVBMetaImageHeader h;
+  avb_vbmeta_image_header_to_host_byte_order(
+      reinterpret_cast<AvbVBMetaImageHeader*>(vbmeta_image_.data()), &h);
+
+  EXPECT_EQ(expected_rollback_index_location, h.rollback_index_location);
+  EXPECT_EQ(1u, h.required_libavb_version_major);
+  EXPECT_EQ(0u, h.required_libavb_version_minor);
+}
+
+TEST_F(AvbToolTest, CheckRollbackIndexLocation) {
+  uint32_t rollback_index_location = 42;
+  GenerateVBMetaImage("vbmeta.img",
+                      "SHA256_RSA2048",
+                      0,
+                      base::FilePath("test/data/testkey_rsa2048.pem"),
+                      base::StringPrintf("--rollback_index_location %d",
+                                         rollback_index_location));
+
+  AvbVBMetaImageHeader h;
+  avb_vbmeta_image_header_to_host_byte_order(
+      reinterpret_cast<AvbVBMetaImageHeader*>(vbmeta_image_.data()), &h);
+
+  EXPECT_EQ(rollback_index_location, h.rollback_index_location);
+  EXPECT_EQ(1u, h.required_libavb_version_major);
+  EXPECT_EQ(2u, h.required_libavb_version_minor);
+}
+
 TEST_F(AvbToolTest, CheckPubkeyReturned) {
   GenerateVBMetaImage("vbmeta.img",
                       "SHA256_RSA2048",
@@ -360,6 +396,7 @@ TEST_F(AvbToolTest, Info) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Prop: foo -> 'brillo'\n"
@@ -402,6 +439,7 @@ static std::string AddHashFooterGetExpectedVBMetaInfo(
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -483,6 +521,7 @@ void AvbToolTest::AddHashFooterTest(bool sparse_image) {
         "Algorithm:                SHA256_RSA2048\n"
         "Rollback Index:           0\n"
         "Flags:                    0\n"
+        "Rollback Index Location:  0\n"
         "Release String:           ''\n"
         "Descriptors:\n"
         "    Hash descriptor:\n"
@@ -705,6 +744,7 @@ TEST_F(AvbToolTest, DISABLED_AddHashFooterSparseWithHoleAtTheEnd) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -791,6 +831,7 @@ TEST_F(AvbToolTest, AddHashFooterWithPersistentDigest) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -834,6 +875,7 @@ TEST_F(AvbToolTest, AddHashFooterWithNoAB) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -879,6 +921,7 @@ TEST_F(AvbToolTest, AddHashFooterWithPersistentDigestAndNoAB) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hash descriptor:\n"
@@ -951,6 +994,7 @@ void AvbToolTest::AddHashtreeFooterTest(bool sparse_image) {
                                  "Algorithm:                SHA256_RSA2048\n"
                                  "Rollback Index:           0\n"
                                  "Flags:                    0\n"
+                                 "Rollback Index Location:  0\n"
                                  "Release String:           ''\n"
                                  "Descriptors:\n"
                                  "    Hashtree descriptor:\n"
@@ -981,6 +1025,7 @@ void AvbToolTest::AddHashtreeFooterTest(bool sparse_image) {
         "Algorithm:                SHA256_RSA2048\n"
         "Rollback Index:           0\n"
         "Flags:                    0\n"
+        "Rollback Index Location:  0\n"
         "Release String:           ''\n"
         "Descriptors:\n"
         "    Hashtree descriptor:\n"
@@ -1178,6 +1223,7 @@ void AvbToolTest::AddHashtreeFooterTest(bool sparse_image) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Kernel Cmdline descriptor:\n"
@@ -1289,6 +1335,7 @@ void AvbToolTest::AddHashtreeFooterFECTest(bool sparse_image) {
                                  "Algorithm:                SHA256_RSA2048\n"
                                  "Rollback Index:           0\n"
                                  "Flags:                    0\n"
+                                 "Rollback Index Location:  0\n"
                                  "Release String:           ''\n"
                                  "Descriptors:\n"
                                  "    Hashtree descriptor:\n"
@@ -1461,6 +1508,7 @@ void AvbToolTest::AddHashtreeFooterFECTest(bool sparse_image) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Kernel Cmdline descriptor:\n"
@@ -1616,6 +1664,7 @@ TEST_F(AvbToolTest, AddHashtreeFooterCalcMaxImageSizeWithNoHashtree) {
       "Algorithm:                SHA512_RSA4096\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -1667,6 +1716,7 @@ TEST_F(AvbToolTest, AddHashtreeFooterWithPersistentDigest) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -1718,6 +1768,7 @@ TEST_F(AvbToolTest, AddHashtreeFooterWithNoAB) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -1771,6 +1822,7 @@ TEST_F(AvbToolTest, AddHashtreeFooterWithPersistentDigestAndNoAB) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -1820,6 +1872,7 @@ TEST_F(AvbToolTest, AddHashtreeFooterNoSizeOrName) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -1884,6 +1937,7 @@ TEST_F(AvbToolTest, KernelCmdlineDescriptor) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Kernel Cmdline descriptor:\n"
@@ -2009,6 +2063,7 @@ TEST_F(AvbToolTest, CalculateKernelCmdlineChainedAndWithFlags) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Hashtree descriptor:\n"
@@ -2062,6 +2117,7 @@ TEST_F(AvbToolTest, CalculateKernelCmdlineChainedAndWithFlags) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Chain Partition descriptor:\n"
@@ -2186,6 +2242,7 @@ TEST_F(AvbToolTest, IncludeDescriptor) {
       "Algorithm:                NONE\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Prop: name4 -> 'value4'\n"
@@ -2228,6 +2285,7 @@ TEST_F(AvbToolTest, ChainedPartition) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
+      "Rollback Index Location:  0\n"
       "Release String:           ''\n"
       "Descriptors:\n"
       "    Chain Partition descriptor:\n"
@@ -2342,7 +2400,8 @@ TEST_F(AvbToolTest, AppendVBMetaImage) {
       "Algorithm:                SHA256_RSA2048\n"
       "Rollback Index:           0\n"
       "Flags:                    0\n"
-      "Release String:           'avbtool 1.1.0 '\n"
+      "Rollback Index Location:  0\n"
+      "Release String:           'avbtool 1.2.0 '\n"
       "Descriptors:\n"
       "    Kernel Cmdline descriptor:\n"
       "      Flags:                 0\n"
@@ -2905,6 +2964,90 @@ TEST_F(AvbToolTest, VerifyImageChainPartitionOtherVBMeta) {
                  vbmeta_google_path.value().c_str());
 }
 
+TEST_F(AvbToolTest, PrintPartitionDigests) {
+  base::FilePath pk4096_path = testdir_.Append("testkey_rsa4096.avbpubkey");
+  EXPECT_COMMAND(
+      0,
+      "./avbtool extract_public_key --key test/data/testkey_rsa4096.pem"
+      " --output %s",
+      pk4096_path.value().c_str());
+
+  const size_t boot_partition_size = 16 * 1024 * 1024;
+  const size_t boot_image_size = 5 * 1024 * 1024;
+  base::FilePath boot_path = GenerateImage("boot.img", boot_image_size);
+  EXPECT_COMMAND(0,
+                 "./avbtool add_hash_footer"
+                 " --image %s"
+                 " --rollback_index 0"
+                 " --partition_name boot"
+                 " --partition_size %zd"
+                 " --salt deadbeef"
+                 " --internal_release_string \"\"",
+                 boot_path.value().c_str(),
+                 boot_partition_size);
+
+  GenerateVBMetaImage("vbmeta.img",
+                      "SHA256_RSA2048",
+                      0,
+                      base::FilePath("test/data/testkey_rsa2048.pem"),
+                      base::StringPrintf("--chain_partition system:1:%s "
+                                         "--include_descriptors_from_image %s",
+                                         pk4096_path.value().c_str(),
+                                         boot_path.value().c_str()));
+
+  const size_t system_partition_size = 10 * 1024 * 1024;
+  const size_t system_image_size = 8 * 1024 * 1024;
+  base::FilePath system_path = GenerateImage("system.img", system_image_size);
+  EXPECT_COMMAND(0,
+                 "./avbtool add_hashtree_footer --salt d00df00d --image %s "
+                 "--partition_size %zd --partition_name system "
+                 "--algorithm SHA256_RSA4096 "
+                 "--key test/data/testkey_rsa4096.pem "
+                 "--internal_release_string \"\" ",
+                 system_path.value().c_str(),
+                 system_partition_size);
+
+  base::FilePath out_path = testdir_.Append("out.txt");
+  std::string out;
+
+  // Normal output
+  EXPECT_COMMAND(0,
+                 "./avbtool print_partition_digests --image %s --output %s",
+                 vbmeta_image_path_.value().c_str(),
+                 out_path.value().c_str());
+  ASSERT_TRUE(base::ReadFileToString(out_path, &out));
+  EXPECT_EQ(
+      "system: d52d93c988d336a79abe1c05240ae9a79a9b7d61\n"
+      "boot: "
+      "184cb36243adb8b87d2d8c4802de32125fe294ec46753d732144ee65df68a23d\n",
+      out);
+
+  // JSON output
+  EXPECT_COMMAND(
+      0,
+      "./avbtool print_partition_digests --image %s --json --output %s",
+      vbmeta_image_path_.value().c_str(),
+      out_path.value().c_str());
+  ASSERT_TRUE(base::ReadFileToString(out_path, &out));
+  // The trailing whitespace comes from python. If they fix that bug we need
+  // to update this test...
+  EXPECT_EQ(
+      "{\n"
+      "  \"partitions\": [\n"
+      "    {\n"
+      "      \"name\": \"system\",\n"
+      "      \"digest\": \"d52d93c988d336a79abe1c05240ae9a79a9b7d61\"\n"
+      "    },\n"
+      "    {\n"
+      "      \"name\": \"boot\",\n"
+      "      \"digest\": "
+      "\"184cb36243adb8b87d2d8c4802de32125fe294ec46753d732144ee65df68a23d\"\n"
+      "    }\n"
+      "  ]\n"
+      "}",
+      out);
+}
+
 class AvbToolTest_PrintRequiredVersion : public AvbToolTest {
  protected:
   const char* kOutputFile = "versions.txt";
@@ -2914,7 +3057,10 @@ class AvbToolTest_PrintRequiredVersion : public AvbToolTest {
     if (target_required_minor_version == 1) {
       // The --do_not_use_ab option will require 1.1.
       extra_args = "--do_not_use_ab";
+    } else if (target_required_minor_version == 2) {
+      extra_args = "--rollback_index_location 2";
     }
+
     const size_t boot_partition_size = 16 * 1024 * 1024;
     base::FilePath output_path = testdir_.Append(kOutputFile);
     EXPECT_COMMAND(0,
@@ -2937,6 +3083,8 @@ class AvbToolTest_PrintRequiredVersion : public AvbToolTest {
     if (target_required_minor_version == 1) {
       // The --do_not_use_ab option will require 1.1.
       extra_args = "--do_not_use_ab";
+    } else if (target_required_minor_version == 2) {
+      extra_args = "--rollback_index_location 2";
     }
     const size_t system_partition_size = 10 * 1024 * 1024;
     base::FilePath output_path = testdir_.Append(kOutputFile);
@@ -2970,7 +3118,10 @@ class AvbToolTest_PrintRequiredVersion : public AvbToolTest {
                      (int)boot_partition_size);
       extra_args = base::StringPrintf("--include_descriptors_from_image %s",
                                       image_path.value().c_str());
+    } else if (target_required_minor_version == 2) {
+      extra_args = "--rollback_index_location 2";
     }
+
     base::FilePath output_path = testdir_.Append(kOutputFile);
     EXPECT_COMMAND(0,
                    "./avbtool make_vbmeta_image "
@@ -3001,6 +3152,10 @@ TEST_F(AvbToolTest_PrintRequiredVersion, HashFooter_1_1) {
   PrintWithAddHashFooter(1);
 }
 
+TEST_F(AvbToolTest_PrintRequiredVersion, HashFooter_1_2) {
+  PrintWithAddHashFooter(2);
+}
+
 TEST_F(AvbToolTest_PrintRequiredVersion, HashtreeFooter_1_0) {
   PrintWithAddHashtreeFooter(0);
 }
@@ -3009,12 +3164,20 @@ TEST_F(AvbToolTest_PrintRequiredVersion, HashtreeFooter_1_1) {
   PrintWithAddHashtreeFooter(1);
 }
 
+TEST_F(AvbToolTest_PrintRequiredVersion, HashtreeFooter_1_2) {
+  PrintWithAddHashtreeFooter(2);
+}
+
 TEST_F(AvbToolTest_PrintRequiredVersion, Vbmeta_1_0) {
   PrintWithMakeVbmetaImage(0);
 }
 
 TEST_F(AvbToolTest_PrintRequiredVersion, Vbmeta_1_1) {
   PrintWithMakeVbmetaImage(1);
+}
+
+TEST_F(AvbToolTest_PrintRequiredVersion, Vbmeta_1_2) {
+  PrintWithMakeVbmetaImage(2);
 }
 
 TEST_F(AvbToolTest, MakeAtxPikCertificate) {
