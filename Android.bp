@@ -94,6 +94,7 @@ python_library_host {
     name: "aftl_proto",
     srcs: [
         "proto/api.proto",
+        "proto/aftl.proto",
         "proto/crypto/sigpb/sigpb.proto",
         "proto/crypto/keyspb/keyspb.proto",
         "proto/trillian.proto",
