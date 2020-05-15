@@ -391,13 +391,16 @@ static bool parse_trillian_log_root_descriptor(AftlIcpEntry* icp_entry,
   }
 
   /* Copy in the root hash from the blob. */
-  if (!read_mem(&(icp_entry->log_root_descriptor.root_hash),
-                icp_entry->log_root_descriptor.root_hash_size,
-                aftl_blob,
-                blob_end)) {
-    avb_error("Unable to parse root hash.\n");
+  icp_entry->log_root_descriptor.root_hash =
+      (uint8_t*)avb_calloc(icp_entry->log_root_descriptor.root_hash_size);
+  if (!icp_entry->log_root_descriptor.root_hash) {
+    avb_error("Failure to allocate root hash.\n");
     return false;
   }
+  avb_memcpy(icp_entry->log_root_descriptor.root_hash,
+             *aftl_blob,
+             icp_entry->log_root_descriptor.root_hash_size);
+  *aftl_blob += icp_entry->log_root_descriptor.root_hash_size;
 
   /* Copy in the timestamp field from the blob. */
   if (!read_u64(
@@ -429,13 +432,16 @@ static bool parse_trillian_log_root_descriptor(AftlIcpEntry* icp_entry,
 
   /* If it exists, copy in the metadata field from the blob. */
   if (icp_entry->log_root_descriptor.metadata_size > 0) {
-    if (!read_mem(&(icp_entry->log_root_descriptor.metadata),
-                  icp_entry->log_root_descriptor.metadata_size,
-                  aftl_blob,
-                  blob_end)) {
-      avb_error("Unable to parse metadata.\n");
+    icp_entry->log_root_descriptor.metadata =
+        (uint8_t*)avb_calloc(icp_entry->log_root_descriptor.metadata_size);
+    if (!icp_entry->log_root_descriptor.metadata) {
+      avb_error("Failure to allocate metadata.\n");
       return false;
     }
+    avb_memcpy(icp_entry->log_root_descriptor.metadata,
+               *aftl_blob,
+               icp_entry->log_root_descriptor.metadata_size);
+    *aftl_blob += icp_entry->log_root_descriptor.metadata_size;
   } else {
     icp_entry->log_root_descriptor.metadata = NULL;
   }
