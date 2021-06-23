@@ -342,6 +342,7 @@ class RSAPublicKey(object):
     exponent: The key exponent.
     modulus: The key modulus.
     num_bits: The key size.
+    key_path: The path to a key file.
   """
 
   MODULUS_PREFIX = b'modulus='
@@ -900,7 +901,7 @@ class ImageHandler(object):
     Arguments:
       num_bytes: Size in number of bytes of the DONT_CARE chunk.
 
-    Raises
+    Raises:
       OSError: If ImageHandler was initialized in read-only mode.
     """
     assert num_bytes % self.block_size == 0
@@ -937,7 +938,7 @@ class ImageHandler(object):
     Arguments:
       data: Data to append as bytes.
 
-    Raises
+    Raises:
       OSError: If ImageHandler was initialized in read-only mode.
     """
     assert len(data) % self.block_size == 0
@@ -974,7 +975,7 @@ class ImageHandler(object):
       fill_data: Fill data to append - must be four bytes.
       size: Number of chunk - must be a multiple of four and the block size.
 
-    Raises
+    Raises:
       OSError: If ImageHandler was initialized in read-only mode.
     """
     assert len(fill_data) == 4
@@ -1259,7 +1260,7 @@ class AvbPropertyDescriptor(AvbDescriptor):
     Raises:
       LookupError: If the given descriptor is malformed.
     """
-    super(AvbPropertyDescriptor, self).__init__(None)
+    super().__init__(None)
     assert struct.calcsize(self.FORMAT_STRING) == self.SIZE
 
     if data:
@@ -1273,7 +1274,8 @@ class AvbPropertyDescriptor(AvbDescriptor):
       try:
         self.key = data[self.SIZE:(self.SIZE + key_size)].decode('utf-8')
       except UnicodeDecodeError as e:
-        raise LookupError('Key cannot be decoded as UTF-8: {}.'.format(e))
+        raise LookupError('Key cannot be decoded as UTF-8: {}.'
+                          .format(e)) from e
       self.value = data[(self.SIZE + key_size + 1):(self.SIZE + key_size + 1 +
                                                     value_size)]
     else:
@@ -1377,6 +1379,9 @@ class AvbHashtreeDescriptor(AvbDescriptor):
                    'L' +  # flags
                    str(RESERVED) + 's')  # reserved
 
+  FLAGS_DO_NOT_USE_AB = (1 << 0)
+  FLAGS_CHECK_AT_MOST_ONCE = (1 << 1)
+
   def __init__(self, data=None):
     """Initializes a new hashtree descriptor.
 
@@ -1386,7 +1391,7 @@ class AvbHashtreeDescriptor(AvbDescriptor):
     Raises:
       LookupError: If the given descriptor is malformed.
     """
-    super(AvbHashtreeDescriptor, self).__init__(None)
+    super().__init__(None)
     assert struct.calcsize(self.FORMAT_STRING) == self.SIZE
 
     if data:
@@ -1410,7 +1415,7 @@ class AvbHashtreeDescriptor(AvbDescriptor):
         ].decode('utf-8')
       except UnicodeDecodeError as e:
         raise LookupError('Partition name cannot be decoded as UTF-8: {}.'
-                          .format(e))
+                          .format(e)) from e
       o += partition_name_len
       self.salt = data[(self.SIZE + o):(self.SIZE + o + salt_len)]
       o += salt_len
@@ -1582,7 +1587,7 @@ class AvbHashDescriptor(AvbDescriptor):
     Raises:
       LookupError: If the given descriptor is malformed.
     """
-    super(AvbHashDescriptor, self).__init__(None)
+    super().__init__(None)
     assert struct.calcsize(self.FORMAT_STRING) == self.SIZE
 
     if data:
@@ -1603,7 +1608,7 @@ class AvbHashDescriptor(AvbDescriptor):
         ].decode('utf-8')
       except UnicodeDecodeError as e:
         raise LookupError('Partition name cannot be decoded as UTF-8: {}.'
-                          .format(e))
+                          .format(e)) from e
       o += partition_name_len
       self.salt = data[(self.SIZE + o):(self.SIZE + o + salt_len)]
       o += salt_len
@@ -1720,7 +1725,7 @@ class AvbKernelCmdlineDescriptor(AvbDescriptor):
     Raises:
       LookupError: If the given descriptor is malformed.
     """
-    super(AvbKernelCmdlineDescriptor, self).__init__(None)
+    super().__init__(None)
     assert struct.calcsize(self.FORMAT_STRING) == self.SIZE
 
     if data:
@@ -1737,7 +1742,7 @@ class AvbKernelCmdlineDescriptor(AvbDescriptor):
             self.SIZE:(self.SIZE + kernel_cmdline_length)].decode('utf-8')
       except UnicodeDecodeError as e:
         raise LookupError('Kernel command-line cannot be decoded as UTF-8: {}.'
-                          .format(e))
+                          .format(e)) from e
     else:
       self.flags = 0
       self.kernel_cmdline = ''
@@ -1835,7 +1840,7 @@ class AvbChainPartitionDescriptor(AvbDescriptor):
         ].decode('utf-8')
       except UnicodeDecodeError as e:
         raise LookupError('Partition name cannot be decoded as UTF-8: {}.'
-                          .format(e))
+                          .format(e)) from e
       o += partition_name_len
       self.public_key = data[(self.SIZE + o):(self.SIZE + o + public_key_len)]
 
@@ -2468,8 +2473,8 @@ class Avb(object):
       o.write('    Metadata version:        {}\n'.format(version))
 
       def print_atx_certificate(cert):
-        version, public_key, subject, usage, key_version, _signature = \
-            struct.unpack('<I1032s32s32sQ512s', cert)
+        version, public_key, subject, usage, key_version, _ = (
+            struct.unpack('<I1032s32s32sQ512s', cert))
         o.write('      Version:               {}\n'.format(version))
         o.write('      Public key (sha1):     {}\n'.format(
             hashlib.sha1(public_key).hexdigest()))
@@ -2832,7 +2837,11 @@ class Avb(object):
     c += ' {}'.format(ht.root_digest.hex())                 # root_digest
     c += ' {}'.format(ht.salt.hex())                        # salt
     if ht.fec_num_roots > 0:
-      c += ' 10'  # number of optional args
+      if ht.flags & AvbHashtreeDescriptor.FLAGS_CHECK_AT_MOST_ONCE:
+        c += ' 11'  # number of optional args
+        c += ' check_at_most_once'
+      else:
+        c += ' 10'  # number of optional args
       c += ' $(ANDROID_VERITY_MODE)'
       c += ' ignore_zero_blocks'
       c += ' use_fec_from_device PARTUUID=$(ANDROID_SYSTEM_PARTUUID)'
@@ -2843,7 +2852,11 @@ class Avb(object):
       c += ' fec_blocks {}'.format(ht.fec_offset // ht.data_block_size)
       c += ' fec_start {}'.format(ht.fec_offset // ht.data_block_size)
     else:
-      c += ' 2'  # number of optional args
+      if ht.flags & AvbHashtreeDescriptor.FLAGS_CHECK_AT_MOST_ONCE:
+        c += ' 3'  # number of optional args
+        c += ' check_at_most_once'
+      else:
+        c += ' 2'  # number of optional args
       c += ' $(ANDROID_VERITY_MODE)'
       c += ' ignore_zero_blocks'
     c += '" root=/dev/dm-0'
@@ -3025,8 +3038,9 @@ class Avb(object):
     """
     try:
       alg = ALGORITHMS[algorithm_name]
-    except KeyError:
-      raise AvbError('Unknown algorithm with name {}'.format(algorithm_name))
+    except KeyError as e:
+      raise AvbError('Unknown algorithm with name {}'
+                     .format(algorithm_name)) from e
 
     if not descriptors:
       descriptors = []
@@ -3313,7 +3327,7 @@ class Avb(object):
     except Exception as e:
       # Truncate back to original size, then re-raise.
       image.truncate(original_image_size)
-      raise AvbError('Appending VBMeta image failed: {}.'.format(e))
+      raise AvbError('Appending VBMeta image failed: {}.'.format(e)) from e
 
   def add_hash_footer(self, image_filename, partition_size, partition_name,
                       hash_algorithm, salt, chain_partitions, algorithm_name,
@@ -3514,7 +3528,7 @@ class Avb(object):
     except Exception as e:
       # Truncate back to original size, then re-raise.
       image.truncate(original_image_size)
-      raise AvbError('Adding hash_footer failed: {}.'.format(e))
+      raise AvbError('Adding hash_footer failed: {}.'.format(e)) from e
 
   def add_hashtree_footer(self, image_filename, partition_size, partition_name,
                           generate_fec, fec_num_roots, hash_algorithm,
@@ -3532,7 +3546,7 @@ class Avb(object):
                           output_vbmeta_image, do_not_append_vbmeta_image,
                           print_required_libavb_version,
                           use_persistent_root_digest, do_not_use_ab,
-                          no_hashtree):
+                          no_hashtree, check_at_most_once):
     """Implements the 'add_hashtree_footer' command.
 
     See https://gitlab.com/cryptsetup/cryptsetup/wikis/DMVerity for
@@ -3576,13 +3590,15 @@ class Avb(object):
       use_persistent_root_digest: Use a persistent root digest on device.
       do_not_use_ab: The partition does not use A/B.
       no_hashtree: Do not append hashtree. Set size in descriptor as zero.
+      check_at_most_once: Set to verify data blocks only the first time they
+        are read from the data device.
 
     Raises:
       AvbError: If an argument is incorrect or adding the hashtree footer
           failed.
     """
     required_libavb_version_minor = 0
-    if use_persistent_root_digest or do_not_use_ab:
+    if use_persistent_root_digest or do_not_use_ab or check_at_most_once:
       required_libavb_version_minor = 1
     if rollback_index_location > 0:
       required_libavb_version_minor = 2
@@ -3713,9 +3729,11 @@ class Avb(object):
       ht_desc.partition_name = partition_name
       ht_desc.salt = salt
       if do_not_use_ab:
-        ht_desc.flags |= 1  # AVB_HASHTREE_DESCRIPTOR_FLAGS_DO_NOT_USE_AB
+        ht_desc.flags |= AvbHashtreeDescriptor.FLAGS_DO_NOT_USE_AB
       if not use_persistent_root_digest:
         ht_desc.root_digest = root_digest
+      if check_at_most_once:
+        ht_desc.flags |= AvbHashtreeDescriptor.FLAGS_CHECK_AT_MOST_ONCE
 
       # Write the hash tree
       padding_needed = (round_to_multiple(len(hash_tree), image.block_size) -
@@ -3788,7 +3806,7 @@ class Avb(object):
     except Exception as e:
       # Truncate back to original size, then re-raise.
       image.truncate(original_image_size)
-      raise AvbError('Adding hashtree_footer failed: {}.'.format(e))
+      raise AvbError('Adding hashtree_footer failed: {}.'.format(e)) from e
 
   def make_atx_certificate(self, output, authority_key_path, subject_key_path,
                            subject_key_version, subject,
@@ -4040,7 +4058,8 @@ def generate_fec_data(image_filename, num_roots):
            fec_tmpfile.name],
           stderr=open(os.devnull, 'wb'))
     except subprocess.CalledProcessError as e:
-      raise ValueError('Execution of \'fec\' tool failed: {}.'.format(e))
+      raise ValueError('Execution of \'fec\' tool failed: {}.'
+                       .format(e)) from e
     fec_data = fec_tmpfile.read()
 
   footer_size = struct.calcsize(FEC_FOOTER_FORMAT)
@@ -4404,6 +4423,9 @@ class AvbTool(object):
     sub_parser.add_argument('--no_hashtree',
                             action='store_true',
                             help='Do not append hashtree')
+    sub_parser.add_argument('--check_at_most_once',
+                            action='store_true',
+                            help='Set to verify data block only once')
     self._add_common_args(sub_parser)
     self._add_common_footer_args(sub_parser)
     sub_parser.set_defaults(func=self.add_hashtree_footer)
@@ -4784,7 +4806,8 @@ class AvbTool(object):
         args.print_required_libavb_version,
         args.use_persistent_digest,
         args.do_not_use_ab,
-        args.no_hashtree)
+        args.no_hashtree,
+        args.check_at_most_once)
 
   def erase_footer(self, args):
     """Implements the 'erase_footer' sub-command."""
