@@ -44,7 +44,8 @@ extern "C" {
              AVB_TO_STRING(__LINE__), \
              ": " level ": ",         \
              message,                 \
-             ##__VA_ARGS__)
+             ##__VA_ARGS__,           \
+             NULL)
 
 #ifdef AVB_ENABLE_DEBUG
 /* Aborts the program if |expr| is false.
@@ -71,16 +72,14 @@ extern "C" {
  *
  * These have no effect unless AVB_ENABLE_DEBUG is defined.
  */
-#define avb_debug(message) avb_debugv(message, NULL)
-#define avb_debugv(message, ...)              \
+#define avb_debug(message, ...)               \
   do {                                        \
     AVB_LOG("DEBUG", message, ##__VA_ARGS__); \
   } while (0)
 #else
 #define avb_assert(expr)
 #define avb_assert_not_reached()
-#define avb_debug(message)
-#define avb_debugv(message, ...)
+#define avb_debug(message, ...)
 #endif
 
 /* Aborts the program if |addr| is not word-aligned.
@@ -93,20 +92,24 @@ extern "C" {
 /* Prints out a message. This is typically used if a runtime-error
  * occurs.
  */
-#define avb_error(message) avb_errorv(message, NULL)
-#define avb_errorv(message, ...)              \
+#define avb_error(message, ...)               \
   do {                                        \
     AVB_LOG("ERROR", message, ##__VA_ARGS__); \
   } while (0)
 
 /* Prints out a message and calls avb_abort().
  */
-#define avb_fatal(message) avb_fatalv(message, NULL)
-#define avb_fatalv(message, ...)              \
+#define avb_fatal(message, ...)               \
   do {                                        \
     AVB_LOG("FATAL", message, ##__VA_ARGS__); \
     avb_abort();                              \
   } while (0)
+
+/* Deprecated legacy logging functions -- kept for client compatibility.
+ */
+#define avb_debugv(message, ...) avb_debug(message, ##__VA_ARGS__)
+#define avb_errorv(message, ...) avb_error(message, ##__VA_ARGS__)
+#define avb_fatalv(message, ...) avb_fatal(message, ##__VA_ARGS__)
 
 /* Converts a 16-bit unsigned integer from big-endian to host byte order. */
 uint16_t avb_be16toh(uint16_t in) AVB_ATTR_WARN_UNUSED_RESULT;
