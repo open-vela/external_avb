@@ -38,6 +38,14 @@ extern "C" {
 #define AVB_STRINGIFY(x) #x
 #define AVB_TO_STRING(x) AVB_STRINGIFY(x)
 
+#define AVB_LOG(level, message, ...)  \
+  avb_printv(avb_basename(__FILE__),  \
+             ":",                     \
+             AVB_TO_STRING(__LINE__), \
+             ": " level ": ",         \
+             message,                 \
+             ##__VA_ARGS__)
+
 #ifdef AVB_ENABLE_DEBUG
 /* Aborts the program if |expr| is false.
  *
@@ -63,23 +71,10 @@ extern "C" {
  *
  * These have no effect unless AVB_ENABLE_DEBUG is defined.
  */
-#define avb_debug(message)              \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": DEBUG: ",             \
-               message,                 \
-               NULL);                   \
-  } while (0)
-#define avb_debugv(message, ...)        \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": DEBUG: ",             \
-               message,                 \
-               ##__VA_ARGS__);          \
+#define avb_debug(message) avb_debugv(message, NULL)
+#define avb_debugv(message, ...)              \
+  do {                                        \
+    AVB_LOG("DEBUG", message, ##__VA_ARGS__); \
   } while (0)
 #else
 #define avb_assert(expr)
@@ -98,46 +93,19 @@ extern "C" {
 /* Prints out a message. This is typically used if a runtime-error
  * occurs.
  */
-#define avb_error(message)              \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": ERROR: ",             \
-               message,                 \
-               NULL);                   \
-  } while (0)
-#define avb_errorv(message, ...)        \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": ERROR: ",             \
-               message,                 \
-               ##__VA_ARGS__);          \
+#define avb_error(message) avb_errorv(message, NULL)
+#define avb_errorv(message, ...)              \
+  do {                                        \
+    AVB_LOG("ERROR", message, ##__VA_ARGS__); \
   } while (0)
 
 /* Prints out a message and calls avb_abort().
  */
-#define avb_fatal(message)              \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": FATAL: ",             \
-               message,                 \
-               NULL);                   \
-    avb_abort();                        \
-  } while (0)
-#define avb_fatalv(message, ...)        \
-  do {                                  \
-    avb_printv(avb_basename(__FILE__),  \
-               ":",                     \
-               AVB_TO_STRING(__LINE__), \
-               ": FATAL: ",             \
-               message,                 \
-               ##__VA_ARGS__);          \
-    avb_abort();                        \
+#define avb_fatal(message) avb_fatalv(message, NULL)
+#define avb_fatalv(message, ...)              \
+  do {                                        \
+    AVB_LOG("FATAL", message, ##__VA_ARGS__); \
+    avb_abort();                              \
   } while (0)
 
 /* Converts a 16-bit unsigned integer from big-endian to host byte order. */
