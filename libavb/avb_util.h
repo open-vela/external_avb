@@ -35,9 +35,34 @@
 extern "C" {
 #endif
 
+#define AVB_CONCAT(x, y) x##y
 #define AVB_STRINGIFY(x) #x
 #define AVB_TO_STRING(x) AVB_STRINGIFY(x)
 
+#define AVB__COUNT_ARGS(_0, _1, _2, _3, _4, _5, _6, _7, x, ...) x
+#define AVB_COUNT_ARGS(...) \
+  AVB__COUNT_ARGS(, ##__VA_ARGS__, 7, 6, 5, 4, 3, 2, 1, 0)
+
+#define AVB__REPEAT0(x)
+#define AVB__REPEAT1(x) x
+#define AVB__REPEAT2(x) AVB__REPEAT1(x) x
+#define AVB__REPEAT3(x) AVB__REPEAT2(x) x
+#define AVB__REPEAT4(x) AVB__REPEAT3(x) x
+#define AVB__REPEAT5(x) AVB__REPEAT4(x) x
+#define AVB__REPEAT6(x) AVB__REPEAT5(x) x
+#define AVB__REPEAT7(x) AVB__REPEAT6(x) x
+#define AVB__REPEAT(n, x) AVB_CONCAT(AVB__REPEAT, n)(x)
+#define AVB_REPEAT(n, x) AVB__REPEAT(n, x)
+
+#ifdef AVB_USE_PRINTF_LOGS
+#define AVB_LOG(level, message, ...)                                        \
+  avb_printf("%s:%d: " level                                                \
+             ": " AVB_REPEAT(AVB_COUNT_ARGS(message, ##__VA_ARGS__), "%s"), \
+             avb_basename(__FILE__),                                        \
+             __LINE__,                                                      \
+             message,                                                       \
+             ##__VA_ARGS__)
+#else
 #define AVB_LOG(level, message, ...)  \
   avb_printv(avb_basename(__FILE__),  \
              ":",                     \
@@ -46,6 +71,7 @@ extern "C" {
              message,                 \
              ##__VA_ARGS__,           \
              NULL)
+#endif
 
 #ifdef AVB_ENABLE_DEBUG
 /* Aborts the program if |expr| is false.
@@ -105,11 +131,13 @@ extern "C" {
     avb_abort();                              \
   } while (0)
 
+#ifndef AVB_USE_PRINTF_LOGS
 /* Deprecated legacy logging functions -- kept for client compatibility.
  */
 #define avb_debugv(message, ...) avb_debug(message, ##__VA_ARGS__)
 #define avb_errorv(message, ...) avb_error(message, ##__VA_ARGS__)
 #define avb_fatalv(message, ...) avb_fatal(message, ##__VA_ARGS__)
+#endif
 
 /* Converts a 16-bit unsigned integer from big-endian to host byte order. */
 uint16_t avb_be16toh(uint16_t in) AVB_ATTR_WARN_UNUSED_RESULT;
