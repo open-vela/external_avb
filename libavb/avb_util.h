@@ -49,31 +49,16 @@ extern "C" {
       avb_fatal("assert fail: " #expr "\n"); \
     }                                        \
   } while (0)
-#else
-#define avb_assert(expr)
-#endif
 
 /* Aborts the program if reached.
  *
  * This has no effect unless AVB_ENABLE_DEBUG is defined.
  */
-#ifdef AVB_ENABLE_DEBUG
 #define avb_assert_not_reached()         \
   do {                                   \
     avb_fatal("assert_not_reached()\n"); \
   } while (0)
-#else
-#define avb_assert_not_reached()
-#endif
 
-/* Aborts the program if |addr| is not word-aligned.
- *
- * This has no effect unless AVB_ENABLE_DEBUG is defined.
- */
-#define avb_assert_aligned(addr) \
-  avb_assert((((uintptr_t)addr) & (AVB_ALIGNMENT_SIZE - 1)) == 0)
-
-#ifdef AVB_ENABLE_DEBUG
 /* Print functions, used for diagnostics.
  *
  * These have no effect unless AVB_ENABLE_DEBUG is defined.
@@ -97,9 +82,18 @@ extern "C" {
                ##__VA_ARGS__);          \
   } while (0)
 #else
+#define avb_assert(expr)
+#define avb_assert_not_reached()
 #define avb_debug(message)
 #define avb_debugv(message, ...)
 #endif
+
+/* Aborts the program if |addr| is not word-aligned.
+ *
+ * This has no effect unless AVB_ENABLE_DEBUG is defined.
+ */
+#define avb_assert_aligned(addr) \
+  avb_assert((((uintptr_t)addr) & (AVB_ALIGNMENT_SIZE - 1)) == 0)
 
 /* Prints out a message. This is typically used if a runtime-error
  * occurs.
