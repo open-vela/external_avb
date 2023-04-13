@@ -29,6 +29,7 @@
 
 #include "avb_util.h"
 
+#ifdef CONFIG_LIB_AVB_CRC32
 /* Lookup table for reversing 4 bits. */
 /* clang-format off */
 static uint8_t reverse_4bit_table[] = {
@@ -64,3 +65,4 @@ uint32_t avb_crc32(const uint8_t* buf, size_t size) {
 
   return reverse_uint32(~crc);
 }
+#endif

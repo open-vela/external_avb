@@ -388,27 +388,37 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   // Although only one of the type might be used, we have to defined the
   // structure here so that they would live outside the 'if/else' scope to be
   // used later.
+#ifdef CONFIG_LIB_AVB_SHA256
   AvbSHA256Ctx sha256_ctx;
+#endif
+#ifdef CONFIG_LIB_AVB_SHA512
   AvbSHA512Ctx sha512_ctx;
+#endif
   size_t image_size_to_hash = hash_desc.image_size;
   // If we allow verification error and the whole partition is smaller than
   // image size in hash descriptor, we just hash the whole partition.
   if (image_size_to_hash > image_size) {
     image_size_to_hash = image_size;
   }
+#ifdef CONFIG_LIB_AVB_SHA256
   if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
     avb_sha256_init(&sha256_ctx);
     avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);
     avb_sha256_update(&sha256_ctx, image_buf, image_size_to_hash);
     digest = avb_sha256_final(&sha256_ctx);
     digest_len = AVB_SHA256_DIGEST_SIZE;
-  } else if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha512") == 0) {
+  } else
+#endif
+#ifdef CONFIG_LIB_AVB_SHA512
+  if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha512") == 0) {
     avb_sha512_init(&sha512_ctx);
     avb_sha512_update(&sha512_ctx, desc_salt, hash_desc.salt_len);
     avb_sha512_update(&sha512_ctx, image_buf, image_size_to_hash);
     digest = avb_sha512_final(&sha512_ctx);
     digest_len = AVB_SHA512_DIGEST_SIZE;
-  } else {
+  } else
+#endif
+  {
     avb_errorv(part_name, ": Unsupported hash algorithm.\n", NULL);
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
     goto out;
@@ -1711,11 +1721,12 @@ void avb_slot_verify_data_calculate_vbmeta_digest(const AvbSlotVerifyData* data,
                                                   AvbDigestType digest_type,
                                                   uint8_t* out_digest) {
   bool ret = false;
-  size_t n;
 
   switch (digest_type) {
     case AVB_DIGEST_TYPE_SHA256: {
+#ifdef CONFIG_LIB_AVB_SHA256
       AvbSHA256Ctx ctx;
+      size_t n;
       avb_sha256_init(&ctx);
       for (n = 0; n < data->num_vbmeta_images; n++) {
         avb_sha256_update(&ctx,
@@ -1724,10 +1735,13 @@ void avb_slot_verify_data_calculate_vbmeta_digest(const AvbSlotVerifyData* data,
       }
       avb_memcpy(out_digest, avb_sha256_final(&ctx), AVB_SHA256_DIGEST_SIZE);
       ret = true;
+#endif
     } break;
 
     case AVB_DIGEST_TYPE_SHA512: {
+#ifdef CONFIG_LIB_AVB_SHA512
       AvbSHA512Ctx ctx;
+      size_t n;
       avb_sha512_init(&ctx);
       for (n = 0; n < data->num_vbmeta_images; n++) {
         avb_sha512_update(&ctx,
@@ -1736,6 +1750,7 @@ void avb_slot_verify_data_calculate_vbmeta_digest(const AvbSlotVerifyData* data,
       }
       avb_memcpy(out_digest, avb_sha512_final(&ctx), AVB_SHA512_DIGEST_SIZE);
       ret = true;
+#endif
     } break;
 
       /* Do not add a 'default:' case here because of -Wswitch. */
