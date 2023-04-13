@@ -53,18 +53,27 @@ extern "C" {
  */
 #include "avb_crypto_ops_impl.h"
 
+#if !defined(CONFIG_LIB_AVB_SHA256) && !defined(CONFIG_LIB_AVB_SHA512)
+#error "Enable at least one of SHA256 and SHA512!"
+#endif
+
+#ifdef CONFIG_LIB_AVB_SHA256
 /* Data structure used for SHA-256. */
 typedef struct {
   uint8_t reserved[AVB_SHA256_CONTEXT_SIZE];
   uint8_t buf[AVB_SHA256_DIGEST_SIZE]; /* Used for storing the final digest. */
 } AvbSHA256Ctx;
+#endif
 
+#ifdef CONFIG_LIB_AVB_SHA512
 /* Data structure used for SHA-512. */
 typedef struct {
   uint8_t reserved[AVB_SHA512_CONTEXT_SIZE];
   uint8_t buf[AVB_SHA512_DIGEST_SIZE]; /* Used for storing the final digest. */
 } AvbSHA512Ctx;
+#endif
 
+#ifdef CONFIG_LIB_AVB_SHA256
 /* Initializes the SHA-256 context. */
 void avb_sha256_init(AvbSHA256Ctx* ctx);
 
@@ -73,7 +82,9 @@ void avb_sha256_update(AvbSHA256Ctx* ctx, const uint8_t* data, size_t len);
 
 /* Returns the SHA-256 digest. */
 uint8_t* avb_sha256_final(AvbSHA256Ctx* ctx) AVB_ATTR_WARN_UNUSED_RESULT;
+#endif
 
+#ifdef CONFIG_LIB_AVB_SHA512
 /* Initializes the SHA-512 context. */
 void avb_sha512_init(AvbSHA512Ctx* ctx);
 
@@ -82,6 +93,7 @@ void avb_sha512_update(AvbSHA512Ctx* ctx, const uint8_t* data, size_t len);
 
 /* Returns the SHA-512 digest. */
 uint8_t* avb_sha512_final(AvbSHA512Ctx* ctx) AVB_ATTR_WARN_UNUSED_RESULT;
+#endif
 
 #ifdef __cplusplus
 }
