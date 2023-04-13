@@ -185,6 +185,12 @@ static int cmdline_append_version(AvbSlotVerifyData* slot_data,
   return cmdline_append_option(slot_data, key, combined);
 }
 
+#if defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192)
 static int cmdline_append_uint64_base10(AvbSlotVerifyData* slot_data,
                                         const char* key,
                                         uint64_t value) {
@@ -206,6 +212,7 @@ static int cmdline_append_hex(AvbSlotVerifyData* slot_data,
   avb_free(hex_data);
   return ret;
 }
+#endif
 
 AvbSlotVerifyResult avb_append_options(
     AvbOps* ops,
@@ -264,9 +271,16 @@ AvbSlotVerifyResult avb_append_options(
   switch (algorithm_type) {
     /* Explicit fallthrough. */
     case AVB_ALGORITHM_TYPE_NONE:
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048
     case AVB_ALGORITHM_TYPE_SHA256_RSA2048:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096
     case AVB_ALGORITHM_TYPE_SHA256_RSA4096:
-    case AVB_ALGORITHM_TYPE_SHA256_RSA8192: {
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192
+    case AVB_ALGORITHM_TYPE_SHA256_RSA8192:
+#endif
+    {
       size_t n, total_size = 0;
       uint8_t vbmeta_digest[AVB_SHA256_DIGEST_SIZE];
       avb_slot_verify_data_calculate_vbmeta_digest(
@@ -287,9 +301,19 @@ AvbSlotVerifyResult avb_append_options(
       }
     } break;
     /* Explicit fallthrough. */
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048
     case AVB_ALGORITHM_TYPE_SHA512_RSA2048:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096
     case AVB_ALGORITHM_TYPE_SHA512_RSA4096:
-    case AVB_ALGORITHM_TYPE_SHA512_RSA8192: {
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192
+    case AVB_ALGORITHM_TYPE_SHA512_RSA8192:
+#endif
+#if defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192)
+    {
       size_t n, total_size = 0;
       uint8_t vbmeta_digest[AVB_SHA512_DIGEST_SIZE];
       avb_slot_verify_data_calculate_vbmeta_digest(
@@ -309,7 +333,8 @@ AvbSlotVerifyResult avb_append_options(
         goto out;
       }
     } break;
-    case _AVB_ALGORITHM_NUM_TYPES:
+#endif
+    default:
       avb_assert_not_reached();
       break;
   }

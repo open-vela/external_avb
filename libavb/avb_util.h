@@ -268,7 +268,9 @@ char* avb_replace(const char* str,
                   const char* replace) AVB_ATTR_WARN_UNUSED_RESULT;
 
 /* Calculates the CRC-32 for data in |buf| of size |buf_size|. */
+#ifdef CONFIG_LIB_AVB_CRC32
 uint32_t avb_crc32(const uint8_t* buf, size_t buf_size);
+#endif
 
 /* Returns the basename of |str|. This is defined as the last path
  * component, assuming the normal POSIX separator '/'. If there are no

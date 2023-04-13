@@ -38,8 +38,12 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   AvbVBMetaImageHeader h;
   uint8_t* computed_hash;
   const AvbAlgorithmData* algorithm;
+#ifdef CONFIG_LIB_AVB_SHA256
   AvbSHA256Ctx sha256_ctx;
+#endif
+#ifdef CONFIG_LIB_AVB_SHA512
   AvbSHA512Ctx sha512_ctx;
+#endif
   const uint8_t* header_block;
   const uint8_t* authentication_block;
   const uint8_t* auxiliary_block;
@@ -175,9 +179,18 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
 
   switch (h.algorithm_type) {
     /* Explicit fall-through: */
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048
     case AVB_ALGORITHM_TYPE_SHA256_RSA2048:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096
     case AVB_ALGORITHM_TYPE_SHA256_RSA4096:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192
     case AVB_ALGORITHM_TYPE_SHA256_RSA8192:
+#endif
+#if defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192)
       avb_sha256_init(&sha256_ctx);
       avb_sha256_update(
           &sha256_ctx, header_block, sizeof(AvbVBMetaImageHeader));
@@ -185,10 +198,20 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
           &sha256_ctx, auxiliary_block, h.auxiliary_data_block_size);
       computed_hash = avb_sha256_final(&sha256_ctx);
       break;
+#endif
     /* Explicit fall-through: */
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048
     case AVB_ALGORITHM_TYPE_SHA512_RSA2048:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096
     case AVB_ALGORITHM_TYPE_SHA512_RSA4096:
+#endif
+#ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192
     case AVB_ALGORITHM_TYPE_SHA512_RSA8192:
+#endif
+#if defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA8192)
       avb_sha512_init(&sha512_ctx);
       avb_sha512_update(
           &sha512_ctx, header_block, sizeof(AvbVBMetaImageHeader));
@@ -196,6 +219,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
           &sha512_ctx, auxiliary_block, h.auxiliary_data_block_size);
       computed_hash = avb_sha512_final(&sha512_ctx);
       break;
+#endif
     default:
       avb_error("Unknown algorithm.\n");
       goto out;
