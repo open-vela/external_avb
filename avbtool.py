@@ -904,8 +904,6 @@ class ImageHandler(object):
     Raises:
       OSError: If ImageHandler was initialized in read-only mode.
     """
-    assert num_bytes % self.block_size == 0
-
     if self._read_only:
       raise OSError('ImageHandler is in read-only mode.')
 
@@ -941,8 +939,6 @@ class ImageHandler(object):
     Raises:
       OSError: If ImageHandler was initialized in read-only mode.
     """
-    assert len(data) % self.block_size == 0
-
     if self._read_only:
       raise OSError('ImageHandler is in read-only mode.')
 
@@ -2182,8 +2178,8 @@ class Avb(object):
   # meaningful errors if the value passed in via --partition_size is
   # too small and when --calc_max_image_size is used. We use
   # conservative figures.
-  MAX_VBMETA_SIZE = 64 * 1024
-  MAX_FOOTER_SIZE = 4096
+  MAX_VBMETA_SIZE = (4096 - 64)
+  MAX_FOOTER_SIZE = 64
 
   def generate_test_image(self, output, image_size, start_byte):
     """Generates a test image for testing avbtool with known content.
@@ -3515,10 +3511,7 @@ class Avb(object):
         # where this is written to since we'll need to put that in the
         # footer.
         vbmeta_offset = image.image_size
-        padding_needed = (
-            round_to_multiple(len(vbmeta_blob), image.block_size) -
-            len(vbmeta_blob))
-        vbmeta_blob_with_padding = vbmeta_blob + b'\0' * padding_needed
+        vbmeta_blob_with_padding = vbmeta_blob
 
         image.append_raw(vbmeta_blob_with_padding)
         vbmeta_end_offset = vbmeta_offset + len(vbmeta_blob_with_padding)
@@ -3526,7 +3519,7 @@ class Avb(object):
         # Now insert a DONT_CARE chunk with enough bytes such that the
         # final Footer block is at the end of partition_size..
         image.append_dont_care(partition_size - vbmeta_end_offset -
-                               1 * image.block_size)
+                               self.MAX_FOOTER_SIZE)
 
         # Generate the Footer that tells where the VBMeta footer
         # is. Also put enough padding in the front of the footer since
@@ -3536,9 +3529,7 @@ class Avb(object):
         footer.vbmeta_offset = vbmeta_offset
         footer.vbmeta_size = len(vbmeta_blob)
         footer_blob = footer.encode()
-        footer_blob_with_padding = (
-            b'\0' * (image.block_size - AvbFooter.SIZE) + footer_blob)
-        image.append_raw(footer_blob_with_padding)
+        image.append_raw(footer_blob)
     except Exception as e:
       # Truncate back to original size, then re-raise.
       image.truncate(original_image_size)
