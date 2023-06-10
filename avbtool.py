@@ -893,7 +893,7 @@ class ImageHandler(object):
                                   self._num_total_blocks,
                                   self._num_total_chunks))
 
-  def append_dont_care(self, num_bytes):
+  def append_dont_care(self, num_bytes, value=b'\x00'):
     """Appends a DONT_CARE chunk to the sparse file.
 
     The given number of bytes must be a multiple of the block size.
@@ -913,6 +913,8 @@ class ImageHandler(object):
       # a hole on file systems that support sparse files (native
       # sparse, not Android sparse).
       self._image.truncate(self._image.tell() + num_bytes)
+      if value != b'\x00':
+        self._image.write(value * num_bytes)
       self._read_header()
       return
 
@@ -3338,7 +3340,7 @@ class Avb(object):
                       release_string, append_to_release_string,
                       output_vbmeta_image, do_not_append_vbmeta_image,
                       print_required_libavb_version, use_persistent_digest,
-                      do_not_use_ab):
+                      do_not_use_ab, padding_ff):
     """Implementation of the add_hash_footer on unsparse images.
 
     Arguments:
@@ -3519,7 +3521,8 @@ class Avb(object):
         # Now insert a DONT_CARE chunk with enough bytes such that the
         # final Footer block is at the end of partition_size..
         image.append_dont_care(partition_size - vbmeta_end_offset -
-                               self.MAX_FOOTER_SIZE)
+                               self.MAX_FOOTER_SIZE,
+                               b'\xff' if padding_ff else b'\x00')
 
         # Generate the Footer that tells where the VBMeta footer
         # is. Also put enough padding in the front of the footer since
@@ -4360,6 +4363,9 @@ class AvbTool(object):
                             help=('Do not append vbmeta struct or footer '
                                   'to the image'),
                             action='store_true')
+    sub_parser.add_argument('--padding_ff',
+                            help=('Padding with 0xff'),
+                            action='store_true')
     self._add_common_args(sub_parser)
     self._add_common_footer_args(sub_parser)
     sub_parser.set_defaults(func=self.add_hash_footer)
@@ -4786,7 +4792,7 @@ class AvbTool(object):
                              args.do_not_append_vbmeta_image,
                              args.print_required_libavb_version,
                              args.use_persistent_digest,
-                             args.do_not_use_ab)
+                             args.do_not_use_ab, args.padding_ff)
 
   def add_hashtree_footer(self, args):
     """Implements the 'add_hashtree_footer' sub-command."""
