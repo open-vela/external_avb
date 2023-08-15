@@ -653,21 +653,28 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     size_t footer_num_read;
     AvbFooter footer;
 
-    io_ret = ops->read_from_partition(ops,
-                                      full_partition_name,
-                                      -AVB_FOOTER_SIZE,
-                                      AVB_FOOTER_SIZE,
-                                      footer_buf,
-                                      &footer_num_read);
-    if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
-      ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
-      goto out;
-    } else if (io_ret != AVB_IO_RESULT_OK) {
-      avb_errorv(full_partition_name, ": Error loading footer.\n", NULL);
-      ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
-      goto out;
-    }
-    avb_assert(footer_num_read == AVB_FOOTER_SIZE);
+    int64_t read_offset = -AVB_FOOTER_SIZE;
+    do {
+      io_ret = ops->read_from_partition(ops,
+                                        full_partition_name,
+                                        read_offset,
+                                        AVB_FOOTER_SIZE,
+                                        footer_buf,
+                                        &footer_num_read);
+      if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+        ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+        goto out;
+      } else if (io_ret != AVB_IO_RESULT_OK) {
+        avb_errorv(full_partition_name, ": Error loading footer.\n", NULL);
+        ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
+        goto out;
+      }
+      avb_assert(footer_num_read == AVB_FOOTER_SIZE);
+
+      read_offset -= CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
+    } while (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE &&
+             avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
+                             AVB_FOOTER_MAGIC_LEN));
 
     if (!avb_footer_validate_and_byteswap((const AvbFooter*)footer_buf,
                                           &footer)) {
