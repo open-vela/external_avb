@@ -742,17 +742,19 @@ class ImageHandler(object):
   NUM_CHUNKS_AND_BLOCKS_FORMAT = '<II'
   NUM_CHUNKS_AND_BLOCKS_OFFSET = 16
 
-  def __init__(self, image_filename, read_only=False):
+  def __init__(self, image_filename, read_only=False, block_size=4096):
     """Initializes an image handler.
 
     Arguments:
       image_filename: The name of the file to operate on.
       read_only: True if file is only opened for read-only operations.
+      block_size: Block size (default: 4096)
 
     Raises:
       ValueError: If data in the file is invalid.
     """
     self.filename = image_filename
+    self.block_size = block_size
     self._num_total_blocks = 0
     self._num_total_chunks = 0
     self._file_pos = 0
@@ -769,7 +771,6 @@ class ImageHandler(object):
       ValueError: If data in the file is invalid.
     """
     self.is_sparse = False
-    self.block_size = 4096
     self._file_pos = 0
     if self._read_only:
       self._image = open(self.filename, 'rb')
@@ -3340,7 +3341,7 @@ class Avb(object):
                       release_string, append_to_release_string,
                       output_vbmeta_image, do_not_append_vbmeta_image,
                       print_required_libavb_version, use_persistent_digest,
-                      do_not_use_ab, padding_ff):
+                      do_not_use_ab, padding_ff, block_size):
     """Implementation of the add_hash_footer on unsparse images.
 
     Arguments:
@@ -3402,7 +3403,7 @@ class Avb(object):
     # First, calculate the maximum image size such that an image
     # this size + metadata (footer + vbmeta struct) fits in
     # |partition_size|.
-    max_metadata_size = self.MAX_VBMETA_SIZE + self.MAX_FOOTER_SIZE
+    max_metadata_size = block_size
     if not dynamic_partition_size and partition_size < max_metadata_size:
       raise AvbError('Parition size of {} is too small. '
                      'Needs to be at least {}'.format(
@@ -3413,7 +3414,7 @@ class Avb(object):
       print('{}'.format(partition_size - max_metadata_size))
       return
 
-    image = ImageHandler(image_filename)
+    image = ImageHandler(image_filename, block_size=block_size)
 
     # If there's already a footer, truncate the image to its original
     # size. This way 'avbtool add_hash_footer' is idempotent (modulo
@@ -4366,6 +4367,10 @@ class AvbTool(object):
     sub_parser.add_argument('--padding_ff',
                             help=('Padding with 0xff'),
                             action='store_true')
+    sub_parser.add_argument('--block_size',
+                            help='Block size (default: 4096)',
+                            type=parse_number,
+                            default=4096)
     self._add_common_args(sub_parser)
     self._add_common_footer_args(sub_parser)
     sub_parser.set_defaults(func=self.add_hash_footer)
@@ -4792,7 +4797,7 @@ class AvbTool(object):
                              args.do_not_append_vbmeta_image,
                              args.print_required_libavb_version,
                              args.use_persistent_digest,
-                             args.do_not_use_ab, args.padding_ff)
+                             args.do_not_use_ab, args.padding_ff, args.block_size)
 
   def add_hashtree_footer(self, args):
     """Implements the 'add_hashtree_footer' sub-command."""
