@@ -653,7 +653,10 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     size_t footer_num_read;
     AvbFooter footer;
 
-    int64_t read_offset = -AVB_FOOTER_SIZE;
+    int64_t read_offset = CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE ?
+                          (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE -
+                           AVB_FOOTER_SIZE):
+                          -AVB_FOOTER_SIZE;
     do {
       io_ret = ops->read_from_partition(ops,
                                         full_partition_name,
@@ -671,7 +674,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
       }
       avb_assert(footer_num_read == AVB_FOOTER_SIZE);
 
-      read_offset -= CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
+      read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
     } while (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE &&
              avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
                              AVB_FOOTER_MAGIC_LEN));
