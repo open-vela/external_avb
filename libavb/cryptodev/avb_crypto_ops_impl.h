@@ -41,6 +41,7 @@ typedef struct avb_cryptodev_context_s {
   int fd;
   struct session_op session;
   struct crypt_op crypt;
+  struct crypt_kop cryptk;
 } avb_cryptodev_context_t;
 
 #define AVB_SHA256_CONTEXT_SIZE sizeof(avb_cryptodev_context_t)
@@ -91,6 +92,13 @@ static inline int avb_cryptodev_crypt(avb_cryptodev_context_t *ctx) {
   int ret;
 
   ret = ioctl(ctx->fd, CIOCCRYPT, &ctx->crypt);
+  return ret < 0 ? -errno : ret;
+}
+
+static inline int avb_cryptodev_cryptk(avb_cryptodev_context_t *ctx) {
+  int ret;
+
+  ret = ioctl(ctx->fd, CIOCKEY, &ctx->cryptk);
   return ret < 0 ? -errno : ret;
 }
 
