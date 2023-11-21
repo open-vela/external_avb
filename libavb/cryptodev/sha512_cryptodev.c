@@ -27,9 +27,14 @@
 
 void avb_sha512_init(AvbSHA512Ctx* avb_ctx) {
     avb_cryptodev_context_t* ctx = (avb_cryptodev_context_t*)avb_ctx->reserved;
-    avb_assert(avb_cryptodev_init(ctx) == 0);
+    if (avb_cryptodev_init(ctx) < 0) {
+        avb_fatal("avb_cryptodev_init failed!");
+    }
+
     ctx->session.mac = CRYPTO_SHA2_512;
-    avb_assert(avb_cryptodev_get_session(ctx) == 0);
+    if (avb_cryptodev_get_session(ctx) < 0) {
+        avb_fatal("avb_cryptodev_get_session failed!");
+    }
 }
 
 void avb_sha512_update(AvbSHA512Ctx* avb_ctx, const uint8_t* data, size_t len) {
@@ -38,7 +43,9 @@ void avb_sha512_update(AvbSHA512Ctx* avb_ctx, const uint8_t* data, size_t len) {
     ctx->crypt.flags |= COP_FLAG_UPDATE;
     ctx->crypt.src = (caddr_t)data;
     ctx->crypt.len = len;
-    avb_assert(avb_cryptodev_crypt(ctx) == 0);
+    if (avb_cryptodev_crypt(ctx) < 0) {
+        avb_fatal("avb_cryptodev_crypt failed!");
+    }
 }
 
 uint8_t* avb_sha512_final(AvbSHA512Ctx* avb_ctx) {
@@ -46,7 +53,10 @@ uint8_t* avb_sha512_final(AvbSHA512Ctx* avb_ctx) {
     ctx->crypt.op = COP_ENCRYPT;
     ctx->crypt.flags = 0;
     ctx->crypt.mac = (caddr_t)avb_ctx->buf;
-    avb_assert(avb_cryptodev_crypt(ctx) == 0);
+    if (avb_cryptodev_crypt(ctx) < 0) {
+        avb_fatal("avb_cryptodev_crypt failed!");
+    }
+
     avb_cryptodev_free_session(ctx);
     avb_cryptodev_free(ctx);
     return avb_ctx->buf;
