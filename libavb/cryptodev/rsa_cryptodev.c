@@ -83,7 +83,7 @@ bool avb_rsa_verify(const uint8_t* key,
     goto cleanup;
   }
 
-  ctx.cryptk.crk_op = CRK_RSA_PCKS15_VERIFY;
+  ctx.cryptk.crk_op = CRK_RSA_PKCS15_VERIFY;
   ctx.cryptk.crk_iparams = 5;
   ctx.cryptk.crk_oparams = 0;
 
