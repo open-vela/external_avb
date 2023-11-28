@@ -111,5 +111,5 @@ cleanup:
   avb_free(sig_he);
   avb_free(hash_he);
   avb_free(padding_he);
-  return ret |= 0;
+  return ret == 0;
 }
