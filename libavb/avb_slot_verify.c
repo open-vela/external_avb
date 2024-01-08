@@ -74,11 +74,11 @@ static inline bool result_should_continue(AvbSlotVerifyResult result) {
   return false;
 }
 
-static AvbSlotVerifyResult load_full_partition(AvbOps* ops,
-                                               const char* part_name,
-                                               uint64_t image_size,
-                                               uint8_t** out_image_buf,
-                                               bool* out_image_preloaded) {
+static AvbSlotVerifyResult preload_full_partition(AvbOps* ops,
+                                                  const char* part_name,
+                                                  uint64_t image_size,
+                                                  uint8_t** out_image_buf,
+                                                  bool* out_image_preloaded) {
   size_t part_num_read;
   AvbIOResult io_ret;
 
@@ -113,29 +113,60 @@ static AvbSlotVerifyResult load_full_partition(AvbOps* ops,
     }
   }
 
-  /* Allocate and copy the partition. */
-  if (!*out_image_preloaded) {
+  return AVB_SLOT_VERIFY_RESULT_OK;
+}
+
+static AvbSlotVerifyResult load_partial_partition(AvbOps* ops,
+                                                  const char* part_name,
+                                                  int64_t offset,
+                                                  uint64_t image_size,
+                                                  uint8_t** out_image_buf) {
+  size_t part_num_read;
+  AvbIOResult io_ret;
+
+  if (*out_image_buf == NULL) {
     *out_image_buf = avb_malloc(image_size);
     if (*out_image_buf == NULL) {
       return AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
     }
+  }
 
-    io_ret = ops->read_from_partition(ops,
-                                      part_name,
-                                      0 /* offset */,
-                                      image_size,
-                                      *out_image_buf,
-                                      &part_num_read);
-    if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
-      return AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
-    } else if (io_ret != AVB_IO_RESULT_OK) {
-      avb_errorv(part_name, ": Error loading data from partition.\n", NULL);
-      return AVB_SLOT_VERIFY_RESULT_ERROR_IO;
-    }
-    if (part_num_read != image_size) {
-      avb_errorv(part_name, ": Read incorrect number of bytes.\n", NULL);
-      return AVB_SLOT_VERIFY_RESULT_ERROR_IO;
-    }
+  io_ret = ops->read_from_partition(ops,
+                                    part_name,
+                                    offset,
+                                    image_size,
+                                    *out_image_buf,
+                                    &part_num_read);
+  if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+    return AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+  } else if (io_ret != AVB_IO_RESULT_OK) {
+    avb_errorv(part_name, ": Error loading data from partition.\n", NULL);
+    return AVB_SLOT_VERIFY_RESULT_ERROR_IO;
+  }
+  if (part_num_read != image_size) {
+    avb_errorv(part_name, ": Read incorrect number of bytes.\n", NULL);
+    return AVB_SLOT_VERIFY_RESULT_ERROR_IO;
+  }
+
+  return AVB_SLOT_VERIFY_RESULT_OK;
+}
+
+static AvbSlotVerifyResult load_full_partition(AvbOps* ops,
+                                               const char* part_name,
+                                               uint64_t image_size,
+                                               uint8_t** out_image_buf,
+                                               bool* out_image_preloaded) {
+  AvbSlotVerifyResult ret;
+
+  ret = preload_full_partition(
+    ops, part_name, image_size, out_image_buf, out_image_preloaded);
+  if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
+    return ret;
+  }
+
+  /* Allocate and copy the partition. */
+  if (!*out_image_preloaded) {
+    return load_partial_partition(ops, part_name, 0, image_size, out_image_buf);
   }
 
   return AVB_SLOT_VERIFY_RESULT_OK;
@@ -298,6 +329,13 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   size_t expected_digest_len = 0;
   uint8_t expected_digest_buf[AVB_SHA512_DIGEST_SIZE];
   const uint8_t* expected_digest = NULL;
+  typedef void (*AvbShaUpdate)(void* ctx, const uint8_t* data, size_t len);
+  typedef uint8_t* (*AvbShaFinal)(void* ctx);
+  AvbShaUpdate sha_update = NULL;
+  AvbShaFinal sha_final = NULL;
+  void *sha_ctx = NULL;
+  uint64_t buff_size = CONFIG_LIB_AVB_BUF_SIZE;
+  int64_t offset = 0;
 
   if (!avb_hash_descriptor_validate_and_byteswap(
           (const AvbHashDescriptor*)descriptor, &hash_desc)) {
@@ -380,11 +418,6 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     avb_debugv(part_name, ": Loading entire partition.\n", NULL);
   }
 
-  ret = load_full_partition(
-      ops, part_name, image_size, &image_buf, &image_preloaded);
-  if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
-    goto out;
-  }
   // Although only one of the type might be used, we have to defined the
   // structure here so that they would live outside the 'if/else' scope to be
   // used later.
@@ -400,12 +433,23 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   if (image_size_to_hash > image_size) {
     image_size_to_hash = image_size;
   }
+
+  ret = preload_full_partition(
+      ops, part_name, image_size, &image_buf, &image_preloaded);
+  if ((ret == AVB_SLOT_VERIFY_RESULT_OK && image_preloaded) ||
+      buff_size == 0) {
+    buff_size = image_size;
+  } else {
+    image_size = image_size_to_hash;
+  }
+
 #ifdef CONFIG_LIB_AVB_SHA256
   if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha256") == 0) {
     avb_sha256_init(&sha256_ctx);
     avb_sha256_update(&sha256_ctx, desc_salt, hash_desc.salt_len);
-    avb_sha256_update(&sha256_ctx, image_buf, image_size_to_hash);
-    digest = avb_sha256_final(&sha256_ctx);
+    sha_ctx = &sha256_ctx;
+    sha_update = (AvbShaUpdate)avb_sha256_update;
+    sha_final = (AvbShaFinal)avb_sha256_final;
     digest_len = AVB_SHA256_DIGEST_SIZE;
   } else
 #endif
@@ -413,8 +457,9 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
   if (avb_strcmp((const char*)hash_desc.hash_algorithm, "sha512") == 0) {
     avb_sha512_init(&sha512_ctx);
     avb_sha512_update(&sha512_ctx, desc_salt, hash_desc.salt_len);
-    avb_sha512_update(&sha512_ctx, image_buf, image_size_to_hash);
-    digest = avb_sha512_final(&sha512_ctx);
+    sha_ctx = &sha512_ctx;
+    sha_update = (AvbShaUpdate)avb_sha512_update;
+    sha_final = (AvbShaFinal)avb_sha512_final;
     digest_len = AVB_SHA512_DIGEST_SIZE;
   } else
 #endif
@@ -422,6 +467,28 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     avb_errorv(part_name, ": Unsupported hash algorithm.\n", NULL);
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
     goto out;
+  }
+
+  do {
+    if (image_size - offset < buff_size) {
+      buff_size = image_size - offset;
+    }
+    if (!image_preloaded) {
+      ret = load_partial_partition(ops, part_name, offset, buff_size, &image_buf);
+      if (ret != AVB_SLOT_VERIFY_RESULT_OK) {
+        goto out;
+      }
+    }
+    sha_update(sha_ctx, image_buf, buff_size);
+    offset += buff_size;
+  } while(offset < image_size_to_hash);
+
+  digest = sha_final(sha_ctx);
+
+  // The `image_buf` does not contain the full partition, should not return
+  if (!image_preloaded && CONFIG_LIB_AVB_BUF_SIZE != 0) {
+    avb_free(image_buf);
+    image_buf = NULL;
   }
 
   if (hash_desc.digest_len == 0) {
