@@ -729,6 +729,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
         goto out;
       } else if (io_ret != AVB_IO_RESULT_OK) {
         avb_error(full_partition_name, ": Error loading footer.\n");
+        avb_printf("io_ret: %d\n", io_ret);
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
         goto out;
       }
