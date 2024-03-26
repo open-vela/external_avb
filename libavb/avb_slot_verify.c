@@ -658,6 +658,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   bool is_main_vbmeta;
   bool look_for_vbmeta_footer;
   AvbVBMetaData* vbmeta_image_data = NULL;
+  uint32_t rollback_index_location_to_use = rollback_index_location;
 
   ret = AVB_SLOT_VERIFY_RESULT_OK;
 
@@ -864,7 +865,6 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     }
   }
 
-  uint32_t rollback_index_location_to_use = rollback_index_location;
   if (is_main_vbmeta) {
     rollback_index_location_to_use = vbmeta_header.rollback_index_location;
   }
