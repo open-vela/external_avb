@@ -738,8 +738,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
 
       read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
     } while (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE &&
-             avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
-                             AVB_FOOTER_MAGIC_LEN));
+             (avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
+                              AVB_FOOTER_MAGIC_LEN) != 0));
 
     if (!avb_footer_validate_and_byteswap((const AvbFooter*)footer_buf,
                                           &footer)) {
