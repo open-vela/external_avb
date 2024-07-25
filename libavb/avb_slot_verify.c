@@ -737,7 +737,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
       avb_assert(footer_num_read == AVB_FOOTER_SIZE);
 
       read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
-    } while (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE &&
+    } while ((CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE != 0) &&
              (avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
                               AVB_FOOTER_MAGIC_LEN) != 0));
 
