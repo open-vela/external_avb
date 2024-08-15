@@ -27,9 +27,11 @@
  * a 1KiB lookup table can be a significant cost for bootloaders.
  */
 
+#include "avb_sha.h"
 #include "avb_util.h"
 
 #ifdef CONFIG_LIB_AVB_CRC32
+#ifndef CONFIG_LIB_AVB_CRC32_CRYPTODEV
 /* Lookup table for reversing 4 bits. */
 /* clang-format off */
 static uint8_t reverse_4bit_table[] = {
@@ -49,20 +51,35 @@ static uint32_t reverse_uint32(uint32_t val) {
          (reverse_byte(val >> 16) << 8) | reverse_byte(val >> 24);
 }
 
-uint32_t avb_crc32(const uint8_t* buf, size_t size) {
-  uint32_t crc = 0xFFFFFFFF;
+void avb_crc32_init(AvbCRC32Ctx* ctx) {
+  ctx->digest = 0xFFFFFFFF;
+}
 
+void avb_crc32_update(AvbCRC32Ctx *ctx, const uint8_t* buf, size_t size) {
   for (size_t i = 0; i < size; ++i) {
-    crc = crc ^ ((uint32_t)reverse_byte(buf[i]) << 24);
+    ctx->digest = ctx->digest ^ ((uint32_t)reverse_byte(buf[i]) << 24);
     for (int j = 0; j < 8; ++j) {
-      if (crc & 0x80000000) {
-        crc = (crc << 1) ^ 0x04C11DB7;
+      if (ctx->digest & 0x80000000) {
+        ctx->digest = (ctx->digest << 1) ^ 0x04C11DB7;
       } else {
-        crc <<= 1;
+        ctx->digest <<= 1;
       }
     }
   }
+}
 
-  return reverse_uint32(~crc);
+uint8_t* avb_crc32_final(AvbCRC32Ctx *ctx) {
+  uint32_t crc32 = avb_be32toh(reverse_uint32(~ctx->digest));
+  avb_memcpy(ctx->buf, &crc32, AVB_CRC32_DIGEST_SIZE);
+  return ctx->buf;
+}
+#endif
+
+uint32_t avb_crc32(const uint8_t* buf, size_t size) {
+  AvbCRC32Ctx ctx;
+  avb_crc32_init(&ctx);
+  avb_crc32_update(&ctx, buf, size);
+  avb_crc32_final(&ctx);
+  return ctx.digest;
 }
 #endif
