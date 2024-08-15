@@ -53,6 +53,9 @@ extern "C" {
 /* Size in bytes of a SHA-512 digest. */
 #define AVB_SHA512_DIGEST_SIZE 64
 
+/* Size in bytes of a CRC-32 digest. */
+#define AVB_CRC32_DIGEST_SIZE 4
+
 /* Possible digest types supported by libavb routines. */
 typedef enum {
   AVB_DIGEST_TYPE_SHA256,

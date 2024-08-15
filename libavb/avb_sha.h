@@ -73,6 +73,14 @@ typedef struct {
 } AvbSHA512Ctx;
 #endif
 
+#ifdef CONFIG_LIB_AVB_CRC32
+/* Data structure used for CRC-32. */
+typedef struct {
+  uint32_t digest;
+  uint8_t buf[AVB_CRC32_DIGEST_SIZE];
+} AvbCRC32Ctx;
+#endif
+
 #ifdef CONFIG_LIB_AVB_SHA256
 /* Initializes the SHA-256 context. */
 void avb_sha256_init(AvbSHA256Ctx* ctx);
@@ -93,6 +101,17 @@ void avb_sha512_update(AvbSHA512Ctx* ctx, const uint8_t* data, size_t len);
 
 /* Returns the SHA-512 digest. */
 uint8_t* avb_sha512_final(AvbSHA512Ctx* ctx) AVB_ATTR_WARN_UNUSED_RESULT;
+#endif
+
+#ifdef CONFIG_LIB_AVB_CRC32
+/* Initializes the CRC-32 context. */
+void avb_crc32_init(AvbCRC32Ctx* ctx);
+
+/* Updates the CRC-32 context with |len| bytes from |data|. */
+void avb_crc32_update(AvbCRC32Ctx *ctx, const uint8_t* buf, size_t size);
+
+/* Returns the CRC-32 digest. */
+uint8_t* avb_crc32_final(AvbCRC32Ctx *ctx);
 #endif
 
 #ifdef __cplusplus
