@@ -827,8 +827,14 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   /* Check if the image is properly signed and get the public key used
    * to sign the image.
    */
+#ifdef CONFIG_LIB_AVB_DISABLE_VERIFY
+  pk_len = sizeof(expected_public_key_length);
+  pk_data = (uint8_t*)&expected_public_key_length;
+  vbmeta_ret = AVB_VBMETA_VERIFY_RESULT_OK;
+#else
   vbmeta_ret =
       avb_vbmeta_image_verify(vbmeta_buf, vbmeta_num_read, &pk_data, &pk_len);
+#endif
   switch (vbmeta_ret) {
     case AVB_VBMETA_VERIFY_RESULT_OK:
       avb_assert(pk_data != NULL && pk_len > 0);
