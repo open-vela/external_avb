@@ -422,6 +422,9 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
 #ifdef CONFIG_LIB_AVB_SHA512
   AvbSHA512Ctx sha512_ctx;
 #endif
+#ifdef CONFIG_LIB_AVB_CRC32
+  AvbCRC32Ctx crc32_ctx;
+#endif
   size_t image_size_to_hash = hash_desc.image_size;
   // If we allow verification error and the whole partition is smaller than
   // image size in hash descriptor, we just hash the whole partition.
@@ -456,6 +459,16 @@ static AvbSlotVerifyResult load_and_verify_hash_partition(
     sha_update = (AvbShaUpdate)avb_sha512_update;
     sha_final = (AvbShaFinal)avb_sha512_final;
     digest_len = AVB_SHA512_DIGEST_SIZE;
+  } else
+#endif
+#ifdef CONFIG_LIB_AVB_CRC32
+  if (avb_strcmp((const char*)hash_desc.hash_algorithm, "crc32") == 0) {
+    avb_crc32_init(&crc32_ctx);
+    avb_crc32_update(&crc32_ctx, desc_salt, hash_desc.salt_len);
+    sha_ctx = &crc32_ctx;
+    sha_update = (AvbShaUpdate)avb_crc32_update;
+    sha_final = (AvbShaFinal)avb_crc32_final;
+    digest_len = AVB_CRC32_DIGEST_SIZE;
   } else
 #endif
   {
