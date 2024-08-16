@@ -3452,26 +3452,32 @@ class Avb(object):
                        'size of {}.'.format(image.image_size, max_image_size,
                                             partition_size))
 
-      digest_size = len(hashlib.new(hash_algorithm).digest())
-      if salt:
-        salt = binascii.unhexlify(salt)
-      elif salt is None and not use_persistent_digest:
-        # If salt is not explicitly specified, choose a hash that's the same
-        # size as the hash size. Don't populate a random salt if this
-        # descriptor is being created to use a persistent digest on device.
-        hash_size = digest_size
-        with open('/dev/urandom', 'rb') as f:
-          salt = f.read(hash_size)
-      else:
+      if hash_algorithm == "crc32":
+        image.seek(0)
+        digest = binascii.crc32(image.read(image.image_size)) & 0xffffffff
+        digest = digest.to_bytes(4, 'big')
         salt = b''
+      else:
+        digest_size = len(hashlib.new(hash_algorithm).digest())
+        if salt:
+          salt = binascii.unhexlify(salt)
+        elif salt is None and not use_persistent_digest:
+          # If salt is not explicitly specified, choose a hash that's the same
+          # size as the hash size. Don't populate a random salt if this
+          # descriptor is being created to use a persistent digest on device.
+          hash_size = digest_size
+          with open('/dev/urandom', 'rb') as f:
+            salt = f.read(hash_size)
+        else:
+          salt = b''
 
-      hasher = hashlib.new(hash_algorithm, salt)
-      # TODO(zeuthen): might want to read this in chunks to avoid
-      # memory pressure, then again, this is only supposed to be used
-      # on kernel/initramfs partitions. Possible optimization.
-      image.seek(0)
-      hasher.update(image.read(image.image_size))
-      digest = hasher.digest()
+        hasher = hashlib.new(hash_algorithm, salt)
+        # TODO(zeuthen): might want to read this in chunks to avoid
+        # memory pressure, then again, this is only supposed to be used
+        # on kernel/initramfs partitions. Possible optimization.
+        image.seek(0)
+        hasher.update(image.read(image.image_size))
+        digest = hasher.digest()
 
       h_desc = AvbHashDescriptor()
       h_desc.image_size = image.image_size
