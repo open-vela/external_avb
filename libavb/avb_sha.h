@@ -78,6 +78,9 @@ typedef struct {
 typedef struct {
   uint32_t digest;
   uint8_t buf[AVB_CRC32_DIGEST_SIZE];
+#ifdef CONFIG_LIB_AVB_CRC32_CRYPTODEV
+  uint8_t reserved[AVB_CRC32_CONTEXT_SIZE];
+#endif
 } AvbCRC32Ctx;
 #endif
 

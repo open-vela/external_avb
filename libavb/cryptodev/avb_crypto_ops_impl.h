@@ -46,6 +46,7 @@ typedef struct avb_cryptodev_context_s {
 
 #define AVB_SHA256_CONTEXT_SIZE sizeof(avb_cryptodev_context_t)
 #define AVB_SHA512_CONTEXT_SIZE sizeof(avb_cryptodev_context_t)
+#define AVB_CRC32_CONTEXT_SIZE  sizeof(avb_cryptodev_context_t)
 
 static inline int avb_cryptodev_init(avb_cryptodev_context_t *ctx) {
   int ret;
