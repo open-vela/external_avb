@@ -53,8 +53,8 @@ extern "C" {
  */
 #include "avb_crypto_ops_impl.h"
 
-#if !defined(CONFIG_LIB_AVB_SHA256) && !defined(CONFIG_LIB_AVB_SHA512)
-#error "Enable at least one of SHA256 and SHA512!"
+#if !defined(CONFIG_LIB_AVB_SHA256) && !defined(CONFIG_LIB_AVB_SHA512) && !defined(CONFIG_LIB_AVB_CRC32)
+#error "Enable at least one MD!"
 #endif
 
 #ifdef CONFIG_LIB_AVB_SHA256

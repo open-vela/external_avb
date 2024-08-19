@@ -280,6 +280,9 @@ AvbSlotVerifyResult avb_append_options(
 #ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192
     case AVB_ALGORITHM_TYPE_SHA256_RSA8192:
 #endif
+#if defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA2048) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA4096) || \
+    defined(CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA256_RSA8192)
     {
       size_t n, total_size = 0;
       uint8_t vbmeta_digest[AVB_SHA256_DIGEST_SIZE];
@@ -300,6 +303,7 @@ AvbSlotVerifyResult avb_append_options(
         goto out;
       }
     } break;
+#endif
     /* Explicit fallthrough. */
 #ifdef CONFIG_LIB_AVB_ALGORITHM_TYPE_SHA512_RSA2048
     case AVB_ALGORITHM_TYPE_SHA512_RSA2048:

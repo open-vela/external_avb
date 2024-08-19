@@ -916,6 +916,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
 
       // If we're not using a vbmeta partition, need to use another AvbOps...
       if (flags & AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION) {
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
         io_ret = ops->validate_public_key_for_partition(
             ops,
             full_partition_name,
@@ -925,6 +926,10 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
             pk_metadata_len,
             &key_is_trusted,
             &rollback_index_location_to_use);
+#else
+        io_ret = AVB_IO_RESULT_OK;
+        key_is_trusted = true;
+#endif
       } else {
         avb_assert(is_main_vbmeta);
         io_ret = ops->validate_vbmeta_public_key(ops,

@@ -37,7 +37,9 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   AvbVBMetaVerifyResult ret;
   AvbVBMetaImageHeader h;
   uint8_t* computed_hash;
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
   const AvbAlgorithmData* algorithm;
+#endif
 #ifdef CONFIG_LIB_AVB_SHA256
   AvbSHA256Ctx sha256_ctx;
 #endif
@@ -47,7 +49,9 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
   const uint8_t* header_block;
   const uint8_t* authentication_block;
   const uint8_t* auxiliary_block;
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
   int verification_result;
+#endif
 
   ret = AVB_VBMETA_VERIFY_RESULT_INVALID_VBMETA_HEADER;
 
@@ -156,6 +160,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     goto out;
   }
 
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
   /* Ensure algorithm field is supported. */
   algorithm = avb_get_algorithm_data(h.algorithm_type);
   if (!algorithm) {
@@ -168,6 +173,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     avb_error("Embedded hash has wrong size.\n");
     goto out;
   }
+#endif
 
   /* No overflow checks needed from here-on after since all block
    * sizes and offsets have been verified above.
@@ -233,6 +239,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     goto out;
   }
 
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
   verification_result =
       avb_rsa_verify(auxiliary_block + h.public_key_offset,
                      h.public_key_size,
@@ -247,6 +254,7 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
     ret = AVB_VBMETA_VERIFY_RESULT_SIGNATURE_MISMATCH;
     goto out;
   }
+#endif
 
   if (h.public_key_size > 0) {
     if (out_public_key_data != NULL) {
