@@ -884,9 +884,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     }
   }
 
-  if (is_main_vbmeta) {
-    rollback_index_location_to_use = vbmeta_header.rollback_index_location;
-  }
+  rollback_index_location_to_use = vbmeta_header.rollback_index_location;
 
   /* Check if key used to make signature matches what is expected. */
   if (pk_data != NULL) {
@@ -972,7 +970,9 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
     goto out;
   }
-  if (vbmeta_header.rollback_index < stored_rollback_index) {
+  if (vbmeta_header.rollback_index < stored_rollback_index ||
+      ((flags & AVB_SLOT_VERIFY_FLAGS_NOT_ALLOW_SAME_ROLLBACK_INDEX) != 0 &&
+        vbmeta_header.rollback_index == stored_rollback_index)) {
     avb_error(
         full_partition_name,
         ": Image rollback index is less than the stored rollback index.\n");
