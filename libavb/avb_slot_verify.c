@@ -976,9 +976,11 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     avb_error(
         full_partition_name,
         ": Image rollback index is less than the stored rollback index.\n");
-    ret = AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX;
-    if (!allow_verification_error) {
-      goto out;
+    if (!(flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_ROLLBACK_INDEX_ERROR)) {
+      ret = AVB_SLOT_VERIFY_RESULT_ERROR_ROLLBACK_INDEX;
+      if (!allow_verification_error) {
+        goto out;
+      }
     }
   }
 
