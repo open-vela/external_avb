@@ -135,6 +135,7 @@ typedef enum {
   AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION = (1 << 2),
   AVB_SLOT_VERIFY_FLAGS_NOT_ALLOW_SAME_ROLLBACK_INDEX = (1 << 3),
   AVB_SLOT_VERIFY_FLAGS_NOT_UPDATE_ROLLBACK_INDEX = (1 << 4),
+  AVB_SLOT_VERIFY_FLAGS_ALLOW_ROLLBACK_INDEX_ERROR = (1 << 5),
 } AvbSlotVerifyFlags;
 
 /* Get a textual representation of |result|. */
