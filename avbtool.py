@@ -1612,7 +1612,10 @@ class AvbHashDescriptor(AvbDescriptor):
       self.salt = data[(self.SIZE + o):(self.SIZE + o + salt_len)]
       o += salt_len
       self.digest = data[(self.SIZE + o):(self.SIZE + o + digest_len)]
-      if digest_len != len(hashlib.new(self.hash_algorithm).digest()):
+      if self.hash_algorithm == "crc32":
+        if digest_len != 0 and digest_len != 4:
+          raise LookupError('digest_len doesn\'t match crc-32')
+      elif digest_len != len(hashlib.new(self.hash_algorithm).digest()):
         if digest_len != 0:
           raise LookupError('digest_len doesn\'t match hash algorithm')
 
