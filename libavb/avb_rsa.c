@@ -97,9 +97,6 @@ static IAvbKey* iavb_parse_key_data(const uint8_t* data, size_t length) {
   return key;
 
 fail:
-  if (key != NULL) {
-    avb_free(key);
-  }
   return NULL;
 }
 
