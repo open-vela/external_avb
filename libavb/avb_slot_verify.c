@@ -1054,6 +1054,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   for (n = 0; n < num_descriptors; n++) {
     AvbDescriptor desc;
 
+    // descriptors may not always be NULL
+    // coverity[NULL_RETURNS:SUPPRESS]
     if (!avb_descriptor_validate_and_byteswap(descriptors[n], &desc)) {
       avb_error(full_partition_name, ": Descriptor is invalid.\n");
       ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
