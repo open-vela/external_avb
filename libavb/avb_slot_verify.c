@@ -839,9 +839,12 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     case AVB_VBMETA_VERIFY_RESULT_OK:
       avb_assert(pk_data != NULL && pk_len > 0);
       break;
-
+    // CONFIG_LIB_AVB_DISABLE_VERIFY is only for car case
+    // coverity[DEADCODE:SUPPRESS]
     case AVB_VBMETA_VERIFY_RESULT_OK_NOT_SIGNED:
+    // coverity[DEADCODE:SUPPRESS]
     case AVB_VBMETA_VERIFY_RESULT_HASH_MISMATCH:
+    // coverity[DEADCODE:SUPPRESS]
     case AVB_VBMETA_VERIFY_RESULT_SIGNATURE_MISMATCH:
       ret = AVB_SLOT_VERIFY_RESULT_ERROR_VERIFICATION;
       avb_error(full_partition_name,
