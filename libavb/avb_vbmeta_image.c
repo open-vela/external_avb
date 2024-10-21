@@ -231,6 +231,8 @@ AvbVBMetaVerifyResult avb_vbmeta_image_verify(
       goto out;
   }
 
+  // CONFIG_LIB_AVB_CRC32 is only for car case
+  // coverity[UNREACHABLE:SUPPRESS]
   if (avb_safe_memcmp(authentication_block + h.hash_offset,
                       computed_hash,
                       h.hash_size) != 0) {
