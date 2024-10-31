@@ -23,7 +23,9 @@
  */
 
 #include "avb_footer.h"
+
 #include "avb_util.h"
+#include "avb_vbmeta_image.h"
 
 bool avb_footer_validate_and_byteswap(const AvbFooter* src, AvbFooter* dest) {
   avb_memcpy(dest, src, sizeof(AvbFooter));
@@ -51,4 +53,47 @@ bool avb_footer_validate_and_byteswap(const AvbFooter* src, AvbFooter* dest) {
   }
 
   return true;
+}
+
+AvbIOResult avb_footer(AvbOps* ops,
+                       const char* full_partition_name,
+                       AvbFooter* footer) {
+  uint8_t footer_buf[AVB_FOOTER_SIZE];
+  size_t footer_num_read;
+  int64_t read_offset =
+      CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE
+          ? (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE - AVB_FOOTER_SIZE)
+          : -AVB_FOOTER_SIZE;
+
+  do {
+    AvbIOResult io_ret = ops->read_from_partition(ops,
+                                                  full_partition_name,
+                                                  read_offset,
+                                                  AVB_FOOTER_SIZE,
+                                                  footer_buf,
+                                                  &footer_num_read);
+    if (io_ret != AVB_IO_RESULT_OK) {
+      avb_error(full_partition_name, ": Error loading footer.\n");
+      avb_printf("io_ret: %d\n", io_ret);
+      return io_ret;
+    }
+    avb_assert(footer_num_read == AVB_FOOTER_SIZE);
+
+    read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
+  } while ((CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE != 0) &&
+           (avb_safe_memcmp(
+                footer_buf, AVB_FOOTER_MAGIC, AVB_FOOTER_MAGIC_LEN) != 0));
+
+  if (!avb_footer_validate_and_byteswap((const AvbFooter*)footer_buf, footer)) {
+    avb_error(full_partition_name, ": No footer detected.\n");
+  } else {
+    /* Basic footer sanity check since the data is untrusted. */
+    if (footer->vbmeta_size > VBMETA_MAX_SIZE) {
+      avb_error(full_partition_name, ": Invalid vbmeta size in footer.\n");
+    } else {
+      return AVB_IO_RESULT_OK;
+    }
+  }
+
+  return AVB_IO_RESULT_ERROR_IO;
 }
