@@ -29,6 +29,7 @@
 #ifndef AVB_FOOTER_H_
 #define AVB_FOOTER_H_
 
+#include "avb_ops.h"
 #include "avb_sysdeps.h"
 
 #ifdef __cplusplus
@@ -78,6 +79,13 @@ typedef struct AvbFooter {
  */
 bool avb_footer_validate_and_byteswap(const AvbFooter* src, AvbFooter* dest)
     AVB_ATTR_WARN_UNUSED_RESULT;
+
+/* Read and parse AVB footer of the image specified by `full_partition_name`.
+ * Returns `AVB_IO_RESULT_OK` if success, else failed.
+ */
+AvbIOResult avb_footer(AvbOps* ops,
+                       const char* full_partition_name,
+                       AvbFooter* footer);
 
 #ifdef __cplusplus
 }

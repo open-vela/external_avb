@@ -40,9 +40,6 @@
 /* Maximum number of vbmeta images that can be loaded with avb_slot_verify(). */
 #define MAX_NUMBER_OF_VBMETA_IMAGES 32
 
-/* Maximum size of a vbmeta image - 64 KiB. */
-#define VBMETA_MAX_SIZE (64 * 1024)
-
 static AvbSlotVerifyResult initialize_persistent_digest(
     AvbOps* ops,
     const char* part_name,
@@ -723,48 +720,17 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   vbmeta_offset = 0;
   vbmeta_size = VBMETA_MAX_SIZE;
   if (look_for_vbmeta_footer) {
-    uint8_t footer_buf[AVB_FOOTER_SIZE];
-    size_t footer_num_read;
     AvbFooter footer;
-
-    int64_t read_offset = CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE ?
-                          (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE -
-                           AVB_FOOTER_SIZE):
-                          -AVB_FOOTER_SIZE;
-    do {
-      io_ret = ops->read_from_partition(ops,
-                                        full_partition_name,
-                                        read_offset,
-                                        AVB_FOOTER_SIZE,
-                                        footer_buf,
-                                        &footer_num_read);
-      if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
+    io_ret = avb_footer(ops, full_partition_name, &footer);
+    if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
         goto out;
-      } else if (io_ret != AVB_IO_RESULT_OK) {
-        avb_error(full_partition_name, ": Error loading footer.\n");
-        avb_printf("io_ret: %d\n", io_ret);
+    } else if (io_ret != AVB_IO_RESULT_OK) {
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_IO;
         goto out;
-      }
-      avb_assert(footer_num_read == AVB_FOOTER_SIZE);
-
-      read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
-    } while ((CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE != 0) &&
-             (avb_safe_memcmp(footer_buf, AVB_FOOTER_MAGIC,
-                              AVB_FOOTER_MAGIC_LEN) != 0));
-
-    if (!avb_footer_validate_and_byteswap((const AvbFooter*)footer_buf,
-                                          &footer)) {
-      avb_debug(full_partition_name, ": No footer detected.\n");
     } else {
-      /* Basic footer sanity check since the data is untrusted. */
-      if (footer.vbmeta_size > VBMETA_MAX_SIZE) {
-        avb_error(full_partition_name, ": Invalid vbmeta size in footer.\n");
-      } else {
-        vbmeta_offset = footer.vbmeta_offset;
-        vbmeta_size = footer.vbmeta_size;
-      }
+      vbmeta_offset = footer.vbmeta_offset;
+      vbmeta_size = footer.vbmeta_size;
     }
   }
 

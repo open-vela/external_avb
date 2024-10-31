@@ -48,6 +48,9 @@ extern "C" {
 /* Maximum size of the release string including the terminating NUL byte. */
 #define AVB_RELEASE_STRING_SIZE 48
 
+/* Maximum size of a vbmeta image - 64 KiB. */
+#define VBMETA_MAX_SIZE (64 * 1024)
+
 /* Flags for the vbmeta image.
  *
  * AVB_VBMETA_IMAGE_FLAGS_HASHTREE_DISABLED: If this flag is set,
