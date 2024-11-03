@@ -47,6 +47,10 @@ extern "C" {
 #define AVB_FOOTER_VERSION_MAJOR 1
 #define AVB_FOOTER_VERSION_MINOR 0
 
+#ifndef AVB_FOOTER_SEARCH_BLKSIZE
+#define AVB_FOOTER_SEARCH_BLKSIZE 0
+#endif
+
 /* The struct used as a footer used on partitions, used to find the
  * AvbVBMetaImageHeader struct. This struct is always stored at the
  * end of a partition.
