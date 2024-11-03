@@ -60,10 +60,9 @@ AvbIOResult avb_footer(AvbOps* ops,
                        AvbFooter* footer) {
   uint8_t footer_buf[AVB_FOOTER_SIZE];
   size_t footer_num_read;
-  int64_t read_offset =
-      CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE
-          ? (CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE - AVB_FOOTER_SIZE)
-          : -AVB_FOOTER_SIZE;
+  int64_t read_offset = AVB_FOOTER_SEARCH_BLKSIZE
+                            ? (AVB_FOOTER_SEARCH_BLKSIZE - AVB_FOOTER_SIZE)
+                            : -AVB_FOOTER_SIZE;
 
   do {
     AvbIOResult io_ret = ops->read_from_partition(ops,
@@ -79,8 +78,8 @@ AvbIOResult avb_footer(AvbOps* ops,
     }
     avb_assert(footer_num_read == AVB_FOOTER_SIZE);
 
-    read_offset += CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE;
-  } while ((CONFIG_LIB_AVB_FOOTER_SEARCH_BLKSIZE != 0) &&
+    read_offset += AVB_FOOTER_SEARCH_BLKSIZE;
+  } while ((AVB_FOOTER_SEARCH_BLKSIZE != 0) &&
            (avb_safe_memcmp(
                 footer_buf, AVB_FOOTER_MAGIC, AVB_FOOTER_MAGIC_LEN) != 0));
 
