@@ -821,14 +821,14 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
         goto out;
       }
       break;
-
+    // coverity[DEADCODE:SUPPRESS]
     case AVB_VBMETA_VERIFY_RESULT_INVALID_VBMETA_HEADER:
       /* No way to continue this case. */
       ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
       avb_error(full_partition_name,
                 ": Error verifying vbmeta image: invalid vbmeta header\n");
       goto out;
-
+    // coverity[DEADCODE:SUPPRESS]
     case AVB_VBMETA_VERIFY_RESULT_UNSUPPORTED_VERSION:
       /* No way to continue this case. */
       ret = AVB_SLOT_VERIFY_RESULT_ERROR_UNSUPPORTED_VERSION;
