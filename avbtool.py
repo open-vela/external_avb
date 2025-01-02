@@ -2405,16 +2405,16 @@ class Avb(object):
     misc_image.seek(self.AB_MISC_METADATA_OFFSET)
     misc_image.write(ab_data)
 
-  def info_image(self, image_filename, output, atx):
+  def info_image(self, args):
     """Implements the 'info_image' command.
 
     Arguments:
-      image_filename: Image file to get information from (file object).
-      output: Output file to write human-readable information to (file object).
-      atx: If True, show information about Android Things eXtension (ATX).
+      args.image.name: Image file to get information from (file object).
+      args.output: Output file to write human-readable information to (file object).
+      args.atx: If True, show information about Android Things eXtension (ATX).
     """
-    image = ImageHandler(image_filename, read_only=True)
-    o = output
+    image = ImageHandler(args.image.name, read_only=True)
+    o = args.output
     (footer, header, descriptors, image_size) = self._parse_image(image)
 
     # To show the SHA1 of the public key.
@@ -2464,7 +2464,7 @@ class Avb(object):
     if num_printed == 0:
       o.write('    (none)\n')
 
-    if atx and header.public_key_metadata_size:
+    if args.atx and header.public_key_metadata_size:
       o.write('Android Things eXtension (ATX):\n')
       key_metadata_offset = (header.SIZE +
                              header.authentication_data_block_size +
@@ -4868,7 +4868,7 @@ class AvbTool(object):
 
   def info_image(self, args):
     """Implements the 'info_image' sub-command."""
-    self.avb.info_image(args.image.name, args.output, args.atx)
+    self.avb.info_image(args)
 
   def verify_image(self, args):
     """Implements the 'verify_image' sub-command."""
