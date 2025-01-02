@@ -2424,6 +2424,12 @@ class Avb(object):
                   header.public_key_offset)
     key_blob = vbmeta_blob[key_offset:key_offset + header.public_key_size]
 
+    if args.rollback_index_location:
+      o.write('{}\n'.format(header.rollback_index_location))
+      return
+    if args.rollback_index:
+      o.write('{}\n'.format(header.rollback_index))
+      return
     if footer:
       o.write('Footer version:           {}.{}\n'.format(footer.version_major,
                                                          footer.version_minor))
@@ -4529,6 +4535,12 @@ class AvbTool(object):
     sub_parser.add_argument('--atx',
                             help=('Show information about Android Things '
                                   'eXtension (ATX).'),
+                            action='store_true')
+    sub_parser.add_argument('--rollback_index',
+                            help=('Only rollback_index'),
+                            action='store_true')
+    sub_parser.add_argument('--rollback_index_location',
+                            help=('Only rollback_index_location'),
                             action='store_true')
     sub_parser.set_defaults(func=self.info_image)
 
