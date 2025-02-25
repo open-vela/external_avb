@@ -56,18 +56,13 @@ extern "C" {
 
 #ifdef AVB_USE_PRINTF_LOGS
 #define AVB_LOG(level, message, ...)                                        \
-  avb_printf("%s:%d: " level                                                \
+  avb_printf(level                                                          \
              ": " AVB_REPEAT(AVB_COUNT_ARGS(message, ##__VA_ARGS__), "%s"), \
-             avb_basename(__FILE__),                                        \
-             __LINE__,                                                      \
              message,                                                       \
              ##__VA_ARGS__)
 #else
 #define AVB_LOG(level, message, ...)  \
-  avb_printv(avb_basename(__FILE__),  \
-             ":",                     \
-             AVB_TO_STRING(__LINE__), \
-             ": " level ": ",         \
+  avb_printv(level ": ",              \
              message,                 \
              ##__VA_ARGS__,           \
              NULL)
