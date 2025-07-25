@@ -953,6 +953,11 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
     }
   }
 
+  if (slot_data->vbmeta_images == NULL) {
+    ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
+    goto out;
+  }
+
   /* Copy vbmeta to vbmeta_images before recursing. */
   if (is_main_vbmeta) {
     avb_assert(slot_data->num_vbmeta_images == 0);
