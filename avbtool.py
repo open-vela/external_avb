@@ -3256,18 +3256,20 @@ class Avb(object):
     output.write(RSAPublicKey(key_path).encode())
 
   def append_vbmeta_image(self, image_filename, vbmeta_image_filename,
-                          partition_size):
+                          partition_size, append_to_end, block_size):
     """Implementation of the append_vbmeta_image command.
 
     Arguments:
       image_filename: File to add the footer to.
       vbmeta_image_filename: File to get vbmeta struct from.
       partition_size: Size of partition.
+      append_to_end: If True, append to end of partition.
+      block_size: Block size to use.
 
     Raises:
       AvbError: If an argument is incorrect or if appending VBMeta image fialed.
     """
-    image = ImageHandler(image_filename)
+    image = ImageHandler(image_filename, block_size=block_size)
 
     if partition_size % image.block_size != 0:
       raise AvbError('Partition size of {} is not a multiple of the image '
@@ -3311,26 +3313,33 @@ class Avb(object):
                         len(vbmeta_blob))
       vbmeta_blob_with_padding = vbmeta_blob + b'\0' * padding_needed
 
-      # Append vbmeta blob and footer
-      image.append_raw(vbmeta_blob_with_padding)
-      vbmeta_end_offset = vbmeta_offset + len(vbmeta_blob_with_padding)
+      if append_to_end:
+        # Append DONT_CARE chunk until the vbmeta struct is at the
+        # end of the partition, then append the vbmeta struct.
+        image.append_dont_care(partition_size - image.image_size -
+                              len(vbmeta_blob_with_padding))
+        image.append_raw(vbmeta_blob_with_padding)
+      else:
+        # Append vbmeta blob and footer
+        image.append_raw(vbmeta_blob_with_padding)
+        vbmeta_end_offset = vbmeta_offset + len(vbmeta_blob_with_padding)
 
-      # Now insert a DONT_CARE chunk with enough bytes such that the
-      # final Footer block is at the end of partition_size..
-      image.append_dont_care(partition_size - vbmeta_end_offset -
-                             1 * image.block_size)
+        # Now insert a DONT_CARE chunk with enough bytes such that the
+        # final Footer block is at the end of partition_size..
+        image.append_dont_care(partition_size - vbmeta_end_offset -
+                              1 * image.block_size)
 
-      # Generate the Footer that tells where the VBMeta footer
-      # is. Also put enough padding in the front of the footer since
-      # we'll write out an entire block.
-      footer = AvbFooter()
-      footer.original_image_size = original_image_size
-      footer.vbmeta_offset = vbmeta_offset
-      footer.vbmeta_size = len(vbmeta_blob)
-      footer_blob = footer.encode()
-      footer_blob_with_padding = (b'\0' * (image.block_size - AvbFooter.SIZE) +
-                                  footer_blob)
-      image.append_raw(footer_blob_with_padding)
+        # Generate the Footer that tells where the VBMeta footer
+        # is. Also put enough padding in the front of the footer since
+        # we'll write out an entire block.
+        footer = AvbFooter()
+        footer.original_image_size = original_image_size
+        footer.vbmeta_offset = vbmeta_offset
+        footer.vbmeta_size = len(vbmeta_blob)
+        footer_blob = footer.encode()
+        footer_blob_with_padding = (b'\0' * (image.block_size - AvbFooter.SIZE) +
+                                    footer_blob)
+        image.append_raw(footer_blob_with_padding)
 
     except Exception as e:
       # Truncate back to original size, then re-raise.
@@ -4402,6 +4411,15 @@ class AvbTool(object):
     sub_parser.add_argument('--vbmeta_image',
                             help='Image with vbmeta blob to append',
                             type=argparse.FileType('rb'))
+    sub_parser.add_argument('--append_to_end',
+                            help=('Direct append the vbmeta blob to end of '
+                                  'block in this partition without footer '
+                                  'but also align to block size. '),
+                            action='store_true')
+    sub_parser.add_argument('--block_size',
+                            help='Block size (default: 4096)',
+                            type=parse_number,
+                            default=4096)
     sub_parser.set_defaults(func=self.append_vbmeta_image)
 
     sub_parser = subparsers.add_parser(
@@ -4793,7 +4811,8 @@ class AvbTool(object):
   def append_vbmeta_image(self, args):
     """Implements the 'append_vbmeta_image' sub-command."""
     self.avb.append_vbmeta_image(args.image.name, args.vbmeta_image.name,
-                                 args.partition_size)
+                                 args.partition_size, args.append_to_end,
+                                 args.block_size)
 
   def add_hash_footer(self, args):
     """Implements the 'add_hash_footer' sub-command."""
