@@ -33,9 +33,7 @@
  */
 
 #define AVB_INSIDE_LIBAVB_USER_H
-#include "avb_ops_user.h"
-#include "avb_user_verification.h"
-#include "avb_user_verity.h"
+#include "avb_verify.h"
 #undef AVB_INSIDE_LIBAVB_USER_H
 
 #endif /* LIBAVB_USER_H_ */

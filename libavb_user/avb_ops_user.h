@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+#if !defined(AVB_INSIDE_LIBAVB_USER_H) && !defined(AVB_COMPILATION)
+#error "Never include this file directly, include libavb_user.h instead."
+#endif
+
 #ifndef AVB_OPS_USER_H_
 #define AVB_OPS_USER_H_
 
@@ -31,30 +35,23 @@
 extern "C" {
 #endif
 
-/* Allocates an AvbOps instance suitable for use in Android userspace
+/* Allocates an AvbOps instance suitable for use in userspace
  * on the device. Returns NULL on OOM.
  *
  * The returned AvbOps has the following characteristics:
  *
- * - The read_from_partition(), write_to_partition(), and
- *   get_size_of_partition() operations are implemented, however for
- *   these operations to work the fstab file on the device must have a
- *   /misc entry using a by-name device file scheme and the containing
- *   by-name/ subdirectory must have files for other partitions.
+ * - The read_from_partition(), write_to_partition(),
+ *   get_size_of_partition() and validate_vbmeta_public_key()
+ *   operations are implemented *
  *
  * - The remaining operations are implemented and never fails and
  *   return the following values:
- *   - validate_vbmeta_public_key(): always returns |true|.
  *   - read_rollback_index(): returns 0 for any roolback index.
  *   - write_rollback_index(): no-op.
  *   - read_is_device_unlocked(): always returns |true|.
+ *   - read_persistent_value():  no-op.
+ *   - write_persistent_value(): no-op.
  *   - get_unique_guid_for_partition(): always returns the empty string.
- *
- * - The |ab_ops| member will point to a valid AvbABOps instance
- *   implemented via libavb_ab/. This should only be used if the AVB
- *   A/B stack is used on the device. This is what is used in
- *   bootctrl.avb boot control implementation.
- *
  * Free with avb_ops_user_free().
  */
 AvbOps* avb_ops_user_new(void);
