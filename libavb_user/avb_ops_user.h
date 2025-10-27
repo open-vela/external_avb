@@ -35,6 +35,11 @@
 extern "C" {
 #endif
 
+struct avb_ops_user_data_t {
+  const char* key;
+  const char* vbmeta;
+};
+
 /* Allocates an AvbOps instance suitable for use in userspace
  * on the device. Returns NULL on OOM.
  *

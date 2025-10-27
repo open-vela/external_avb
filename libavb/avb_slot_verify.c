@@ -669,6 +669,7 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
   bool look_for_vbmeta_footer;
   AvbVBMetaData* vbmeta_image_data = NULL;
   uint32_t rollback_index_location_to_use = rollback_index_location;
+  const char* vbmeta_name = NULL;
 
   ret = AVB_SLOT_VERIFY_RESULT_OK;
 
@@ -689,7 +690,9 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
    * 'vbmeta_<partition_name>').
    */
   look_for_vbmeta_footer = true;
-  if (avb_strncmp(partition_name, "vbmeta", avb_strlen("vbmeta")) == 0) {
+  if (ops->vbmeta_partiton_name(ops, &vbmeta_name) ==
+          AVB_IO_RESULT_OK &&
+      avb_strcmp(partition_name, vbmeta_name) == 0) {
     look_for_vbmeta_footer = false;
   }
 
@@ -871,6 +874,8 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
       }
     } else {
       bool key_is_trusted = false;
+
+#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
       const uint8_t* pk_metadata = NULL;
       size_t pk_metadata_len = 0;
 
@@ -883,7 +888,6 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
 
       // If we're not using a vbmeta partition, need to use another AvbOps...
       if (flags & AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION) {
-#ifndef CONFIG_LIB_AVB_DISABLE_VERIFY
         io_ret = ops->validate_public_key_for_partition(
             ops,
             full_partition_name,
@@ -893,10 +897,6 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
             pk_metadata_len,
             &key_is_trusted,
             &rollback_index_location_to_use);
-#else
-        io_ret = AVB_IO_RESULT_OK;
-        key_is_trusted = true;
-#endif
       } else {
         avb_assert(is_main_vbmeta);
         io_ret = ops->validate_vbmeta_public_key(ops,
@@ -906,6 +906,10 @@ static AvbSlotVerifyResult load_and_verify_vbmeta(
                                                  pk_metadata_len,
                                                  &key_is_trusted);
       }
+#else
+      io_ret = AVB_IO_RESULT_OK;
+      key_is_trusted = true;
+#endif
 
       if (io_ret == AVB_IO_RESULT_ERROR_OOM) {
         ret = AVB_SLOT_VERIFY_RESULT_ERROR_OOM;
@@ -1441,6 +1445,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
   bool allow_verification_error =
       (flags & AVB_SLOT_VERIFY_FLAGS_ALLOW_VERIFICATION_ERROR);
   AvbCmdlineSubstList* additional_cmdline_subst = NULL;
+  const char* vbmeta_name = NULL;
 
   /* Fail early if we're missing the AvbOps needed for slot verification. */
   avb_assert(ops->read_is_device_unlocked != NULL);
@@ -1548,6 +1553,13 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
     }
 
   } else {
+    /* If we're using a vbmeta partition, get its name. */
+    if (ops->vbmeta_partiton_name(ops, &vbmeta_name) !=
+            AVB_IO_RESULT_OK) {
+      avb_error("Can't find vbmeta partition name in vbmeta mode\n");
+      ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_METADATA;
+      goto fail;
+    }
     /* Usual path, load "vbmeta"... */
     ret = load_and_verify_vbmeta(ops,
                                  requested_partitions,
@@ -1556,8 +1568,8 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
                                  allow_verification_error,
                                  0 /* toplevel_vbmeta_flags */,
                                  0 /* rollback_index_location */,
-                                 "vbmeta",
-                                 avb_strlen("vbmeta"),
+                                 vbmeta_name,
+                                 avb_strlen(vbmeta_name),
                                  NULL /* expected_public_key */,
                                  0 /* expected_public_key_length */,
                                  slot_data,
@@ -1574,7 +1586,7 @@ AvbSlotVerifyResult avb_slot_verify(AvbOps* ops,
 
   /* If things check out, mangle the kernel command-line as needed. */
   if (!(flags & AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION)) {
-    if (avb_strcmp(slot_data->vbmeta_images[0].partition_name, "vbmeta") != 0) {
+    if (vbmeta_name == NULL) {
       avb_assert(
           avb_strcmp(slot_data->vbmeta_images[0].partition_name, "boot") == 0);
       using_boot_for_vbmeta = true;

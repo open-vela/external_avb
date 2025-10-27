@@ -199,12 +199,15 @@ static AvbIOResult validate_public_key_for_partition(
   AvbIOResult result;
   uint8_t* key_data;
   size_t key_length;
+  struct avb_ops_user_data_t* user_data = (struct avb_ops_user_data_t*)ops->user_data;
+
+  if (user_data == NULL) return AVB_IO_RESULT_ERROR_INVALID_VALUE_SIZE;
 
   key_data = avb_malloc(public_key_length);
   if (key_data == NULL) return AVB_IO_RESULT_ERROR_OOM;
 
   result = ops->read_from_partition(
-      ops, ops->user_data, 0, public_key_length, key_data, &key_length);
+      ops, user_data->key, 0, public_key_length, key_data, &key_length);
   if (result == AVB_IO_RESULT_OK) {
     *out_is_trusted = memcmp(key_data, public_key_data, public_key_length) == 0;
     if (!*out_is_trusted) {
@@ -217,6 +220,16 @@ static AvbIOResult validate_public_key_for_partition(
   return result;
 }
 
+static AvbIOResult vbmeta_partiton_name(AvbOps* ops, const char** out_vbmeta_name) {
+  struct avb_ops_user_data_t* user_data = (struct avb_ops_user_data_t*)ops->user_data;
+  if (user_data && user_data->vbmeta) {
+    *out_vbmeta_name = user_data->vbmeta;
+    return AVB_IO_RESULT_OK;
+  }
+
+  return AVB_IO_RESULT_ERROR_NO_SUCH_PARTITION;
+}
+
 AvbOps* avb_ops_user_new() {
   AvbOps* ops;
 
@@ -226,6 +239,7 @@ AvbOps* avb_ops_user_new() {
     goto out;
   }
 
+  ops->user_data = NULL;
   ops->ab_ops = NULL;
   ops->atx_ops = NULL;
   ops->read_from_partition = read_from_partition;
@@ -240,6 +254,7 @@ AvbOps* avb_ops_user_new() {
   ops->write_persistent_value = NULL;
   ops->get_size_of_partition = get_size_of_partition;
   ops->validate_public_key_for_partition = validate_public_key_for_partition;
+  ops->vbmeta_partiton_name = vbmeta_partiton_name;
 
 out:
   return ops;

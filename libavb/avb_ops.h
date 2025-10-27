@@ -331,6 +331,9 @@ struct AvbOps {
       size_t public_key_metadata_length,
       bool* out_is_trusted,
       uint32_t* out_rollback_index_location);
+
+  /* Gets the name of the partition name that contains the vbmeta image.*/
+  AvbIOResult (*vbmeta_partiton_name)(AvbOps* ops, const char** out_vbmeta_name);
 };
 
 #ifdef __cplusplus
