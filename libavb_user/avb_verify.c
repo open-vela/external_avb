@@ -35,7 +35,7 @@ int avb_verify(struct avb_params_t* params) {
   int ret;
   int n;
 
-  if (params == NULL || params->key == NULL || params->partition) {
+  if (params == NULL || params->key == NULL || params->partition == NULL) {
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT;
     goto out;
   }
