@@ -46,11 +46,17 @@ extern "C" {
 /* If you don't have gcc or clang, these attribute macros may need to
  * be adjusted.
  */
+#if defined(__TASKING__)
+#define AVB_ATTR_WARN_UNUSED_RESULT
+#define AVB_ATTR_SENTINEL
+#else
 #define AVB_ATTR_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+#define AVB_ATTR_SENTINEL __attribute__((__sentinel__))
+#endif
 #define AVB_ATTR_PACKED __attribute__((packed))
 #define AVB_ATTR_PRINTF(x, y) __attribute__((format(printf, x, y)))
 #define AVB_ATTR_NO_RETURN __attribute__((noreturn))
-#define AVB_ATTR_SENTINEL __attribute__((__sentinel__))
+
 
 /* Size in bytes used for alignment. */
 #ifdef __LP64__
