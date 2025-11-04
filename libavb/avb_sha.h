@@ -60,16 +60,30 @@ extern "C" {
 #ifdef CONFIG_LIB_AVB_SHA256
 /* Data structure used for SHA-256. */
 typedef struct {
-  uint8_t reserved[AVB_SHA256_CONTEXT_SIZE];
-  uint8_t buf[AVB_SHA256_DIGEST_SIZE]; /* Used for storing the final digest. */
+  union {
+    uint64_t reserved_align_dummy;
+    uint8_t reserved[AVB_SHA256_CONTEXT_SIZE];
+    };
+
+  union {
+    uint64_t buf_align_dummy;
+    uint8_t buf[AVB_SHA256_DIGEST_SIZE];
+  };
 } AvbSHA256Ctx;
 #endif
 
 #ifdef CONFIG_LIB_AVB_SHA512
 /* Data structure used for SHA-512. */
 typedef struct {
-  uint8_t reserved[AVB_SHA512_CONTEXT_SIZE];
-  uint8_t buf[AVB_SHA512_DIGEST_SIZE]; /* Used for storing the final digest. */
+  union {
+    uint64_t reserved_align_dummy;
+    uint8_t reserved[AVB_SHA512_CONTEXT_SIZE];
+    };
+
+  union {
+    uint64_t buf_align_dummy;
+    uint8_t buf[AVB_SHA512_DIGEST_SIZE];
+  };
 } AvbSHA512Ctx;
 #endif
 
@@ -77,9 +91,16 @@ typedef struct {
 /* Data structure used for CRC-32. */
 typedef struct {
   uint32_t digest;
-  uint8_t buf[AVB_CRC32_DIGEST_SIZE];
+  union {
+    uint64_t buf_align_dummy;
+    uint8_t buf[AVB_CRC32_DIGEST_SIZE];
+  };
+
 #ifdef CONFIG_LIB_AVB_CRC32_CRYPTODEV
-  uint8_t reserved[AVB_CRC32_CONTEXT_SIZE];
+  union {
+    uint64_t reserved_align_dummy;
+    uint8_t reserved[AVB_CRC32_CONTEXT_SIZE];
+    };
 #endif
 } AvbCRC32Ctx;
 #endif
