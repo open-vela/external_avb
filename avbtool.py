@@ -3312,17 +3312,22 @@ class Avb(object):
       padding_needed = (round_to_multiple(len(vbmeta_blob), image.block_size) -
                         len(vbmeta_blob))
       vbmeta_blob_with_padding = vbmeta_blob + b'\0' * padding_needed
+      vbmeta_total_size = len(vbmeta_blob_with_padding)
 
       if append_to_end:
+        if image.image_size + vbmeta_total_size > partition_size:
+          raise AvbError(
+            f"VBMeta image too large. Required: {image.image_size + vbmeta_total_size}, "
+            f"Partition size: {partition_size}"
+          )
         # Append DONT_CARE chunk until the vbmeta struct is at the
         # end of the partition, then append the vbmeta struct.
-        image.append_dont_care(partition_size - image.image_size -
-                              len(vbmeta_blob_with_padding))
+        image.append_dont_care(partition_size - image.image_size - vbmeta_total_size)
         image.append_raw(vbmeta_blob_with_padding)
       else:
         # Append vbmeta blob and footer
         image.append_raw(vbmeta_blob_with_padding)
-        vbmeta_end_offset = vbmeta_offset + len(vbmeta_blob_with_padding)
+        vbmeta_end_offset = vbmeta_offset + vbmeta_total_size
 
         # Now insert a DONT_CARE chunk with enough bytes such that the
         # final Footer block is at the end of partition_size..
@@ -3446,6 +3451,15 @@ class Avb(object):
         image.truncate(footer.original_image_size)
       except (LookupError, struct.error):
         original_image_size = image.image_size
+        # Check for vbmeta at end of image without footer
+        if image.image_size == partition_size:
+          image.seek(image.image_size - block_size)
+          try:
+              AvbVBMetaHeader(image.read(AvbVBMetaHeader.SIZE))
+              original_image_size = image.image_size - block_size
+              image.truncate(original_image_size)
+          except:
+              pass
     else:
       # Image size is too small to possibly contain a footer.
       original_image_size = image.image_size
