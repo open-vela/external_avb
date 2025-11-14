@@ -3468,7 +3468,11 @@ class Avb(object):
       partition_size = round_to_multiple(
           original_image_size + max_metadata_size, image.block_size)
 
-    max_image_size = partition_size - max_metadata_size
+    if do_not_append_vbmeta_image:
+      max_image_size = partition_size
+    else:
+      max_image_size = partition_size - max_metadata_size
+
     if partition_size % image.block_size != 0:
       raise AvbError('Partition size of {} is not a multiple of the image '
                      'block size {}.'.format(partition_size,
