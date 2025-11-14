@@ -3364,7 +3364,7 @@ class Avb(object):
                       release_string, append_to_release_string,
                       output_vbmeta_image, do_not_append_vbmeta_image,
                       print_required_libavb_version, use_persistent_digest,
-                      do_not_use_ab, padding_ff, block_size):
+                      do_not_use_ab, padding_ff, block_size, hash_size):
     """Implementation of the add_hash_footer on unsparse images.
 
     Arguments:
@@ -3484,9 +3484,12 @@ class Avb(object):
                        'size of {}.'.format(image.image_size, max_image_size,
                                             partition_size))
 
+      if not hash_size or hash_size > image.image_size:
+        hash_size = image.image_size
+
       if hash_algorithm == "crc32":
         image.seek(0)
-        digest = binascii.crc32(image.read(image.image_size)) & 0xffffffff
+        digest = binascii.crc32(image.read(hash_size)) & 0xffffffff
         digest = digest.to_bytes(4, 'big')
         salt = b''
       else:
@@ -3508,11 +3511,11 @@ class Avb(object):
         # memory pressure, then again, this is only supposed to be used
         # on kernel/initramfs partitions. Possible optimization.
         image.seek(0)
-        hasher.update(image.read(image.image_size))
+        hasher.update(image.read(hash_size))
         digest = hasher.digest()
 
       h_desc = AvbHashDescriptor()
-      h_desc.image_size = image.image_size
+      h_desc.image_size = hash_size
       h_desc.hash_algorithm = hash_algorithm
       h_desc.partition_name = partition_name
       h_desc.salt = salt
@@ -4409,6 +4412,13 @@ class AvbTool(object):
                             help='Block size (default: 4096)',
                             type=parse_number,
                             default=4096)
+    sub_parser.add_argument('--hash_size',
+                            help='default 0, If this value is not 0, we only'
+                                 'calculate the first hash_size bytes of.'
+                                 'the image Note that this value must be'
+                                 'aligned to the block size.(default: 0)',
+                            type=parse_number,
+                            default=0)
     self._add_common_args(sub_parser)
     self._add_common_footer_args(sub_parser)
     sub_parser.set_defaults(func=self.add_hash_footer)
@@ -4851,7 +4861,9 @@ class AvbTool(object):
                              args.do_not_append_vbmeta_image,
                              args.print_required_libavb_version,
                              args.use_persistent_digest,
-                             args.do_not_use_ab, args.padding_ff, args.block_size)
+                             args.do_not_use_ab, args.padding_ff,
+                             args.block_size,
+                             args.hash_size,)
 
   def add_hashtree_footer(self, args):
     """Implements the 'add_hashtree_footer' sub-command."""
