@@ -33,6 +33,7 @@ int avb_verify(struct avb_params_t* params) {
   AvbOps* ops;
   AvbSlotVerifyData* slot_data[2] = {0};
   struct avb_ops_user_data_t user_data = {0};
+  const char* image[2] = {params->image, NULL};
   int ret;
   int n;
 
@@ -57,18 +58,13 @@ int avb_verify(struct avb_params_t* params) {
     goto out;
   }
 
-  const char* partitions[][2] = {
-      {params->partition, NULL},
-      {params->image, NULL},
-  };
-
   user_data.key = params->key;
   user_data.vbmeta = params->vbmeta;
   ops->user_data = &user_data;
 
   for (n = 0; n < 2; n++) {
     ret = avb_slot_verify(ops,
-                          partitions[n],
+                          n == 0 ? params->partition : image,
                           params->suffix ? params->suffix : "",
                           params->flags,
                           AVB_HASHTREE_ERROR_MODE_RESTART_AND_INVALIDATE,

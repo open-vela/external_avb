@@ -45,7 +45,7 @@ struct avb_hash_desc_t {
 };
 
 struct avb_params_t {
-  const char* partition;
+  const char* const* partition;
   const char* image;
   const char* key;
   const char* suffix;
