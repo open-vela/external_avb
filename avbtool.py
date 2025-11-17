@@ -3504,9 +3504,8 @@ class Avb(object):
           # If salt is not explicitly specified, choose a hash that's the same
           # size as the hash size. Don't populate a random salt if this
           # descriptor is being created to use a persistent digest on device.
-          hash_size = digest_size
           with open('/dev/urandom', 'rb') as f:
-            salt = f.read(hash_size)
+            salt = f.read(digest_size)
         else:
           salt = b''
 
