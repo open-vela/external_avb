@@ -33,7 +33,7 @@ int avb_verify(struct avb_params_t* params) {
   AvbOps* ops;
   AvbSlotVerifyData* slot_data[2] = {0};
   struct avb_ops_user_data_t user_data = {0};
-  const char* image[2] = {params->image, NULL};
+  const char* image[2] = {NULL, NULL};
   int ret;
   int n;
 
@@ -41,6 +41,8 @@ int avb_verify(struct avb_params_t* params) {
     ret = AVB_SLOT_VERIFY_RESULT_ERROR_INVALID_ARGUMENT;
     goto out;
   }
+
+  image[0] = params->image;
 
   if (!(params->flags & AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION) &&
       params->vbmeta == NULL) {
